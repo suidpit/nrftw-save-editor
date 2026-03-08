@@ -1,0 +1,15 @@
+{
+  "name": "nrftw_wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "nrftw_wasm_bg.wasm",
+    "nrftw_wasm.js",
+    "nrftw_wasm.d.ts"
+  ],
+  "main": "nrftw_wasm.js",
+  "types": "nrftw_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

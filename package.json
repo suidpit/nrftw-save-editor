@@ -1,0 +1,30 @@
+{
+  "name": "nrftw-save-editor",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "prebuild": "cd wasm && wasm-pack build --target web --out-dir ../src/wasm-pkg",
+    "predev": "cd wasm && wasm-pack build --target web --out-dir ../src/wasm-pkg",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tsconfig/svelte": "^5.0.6",
+    "@types/node": "^24.10.1",
+    "svelte": "^5.45.2",
+    "svelte-check": "^4.3.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.4.1"
+  },
+  "dependencies": {
+    "@bokuweb/zstd-wasm": "^0.0.27",
+    "@sqlite.org/sqlite-wasm": "^3.49.1-build3"
+  }
+}
