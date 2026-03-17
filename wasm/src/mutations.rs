@@ -167,6 +167,10 @@ fn sync_stat_to_character_contents(
             "Faith" => set_character_contents_attribute(doc, "Faith", value)?,
             "Focus" => set_character_contents_attribute(doc, "Focus", value)?,
             "Load" => set_character_contents_attribute(doc, "ItemLoad", value)?,
+            p if p.starts_with("Customization.") => {
+                apply_stat_edit(doc, path, value)?;
+                true
+            }
             _ => false,
         };
 
@@ -176,20 +180,21 @@ fn sync_stat_to_character_contents(
         }
     }
 
-    let is_mirrored_path = matches!(
-        path,
-        "Level"
-            | "XP"
-            | "Gold"
-            | "Health"
-            | "Stamina"
-            | "Strength"
-            | "Dexterity"
-            | "Intelligence"
-            | "Faith"
-            | "Focus"
-            | "Load"
-    );
+    let is_mirrored_path = path.starts_with("Customization.")
+        || matches!(
+            path,
+            "Level"
+                | "XP"
+                | "Gold"
+                | "Health"
+                | "Stamina"
+                | "Strength"
+                | "Dexterity"
+                | "Intelligence"
+                | "Faith"
+                | "Focus"
+                | "Load"
+        );
     if is_mirrored_path && !updated {
         return Err(format!(
             "no Quantum.CharacterContents doc found to mirror '{}'",

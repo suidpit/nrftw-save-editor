@@ -3,6 +3,13 @@
 
 export function apply_changes(changes_json: string, dict_bytes: Uint8Array): Uint8Array;
 
+/**
+ * Parse source save bytes without touching loaded state and return all
+ * Customization leaf fields from the CharacterMetadata doc as a JSON object
+ * mapping path → string value (e.g. `{"Customization.Beard": "9", ...}`).
+ */
+export function extract_customization(bytes: Uint8Array, dict_bytes: Uint8Array): any;
+
 export function force_dump_all(dict_bytes: Uint8Array): Uint8Array;
 
 export function get_inventory_snapshot(doc_idx: number): any;
@@ -37,6 +44,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly apply_changes: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly extract_customization: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly force_dump_all: (a: number, b: number) => [number, number, number, number];
     readonly get_inventory_snapshot: (a: number) => [number, number, number];
     readonly get_node_children: (a: number, b: number, c: number) => [number, number, number];

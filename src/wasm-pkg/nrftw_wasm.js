@@ -20,6 +20,26 @@ export function apply_changes(changes_json, dict_bytes) {
 }
 
 /**
+ * Parse source save bytes without touching loaded state and return all
+ * Customization leaf fields from the CharacterMetadata doc as a JSON object
+ * mapping path → string value (e.g. `{"Customization.Beard": "9", ...}`).
+ * @param {Uint8Array} bytes
+ * @param {Uint8Array} dict_bytes
+ * @returns {any}
+ */
+export function extract_customization(bytes, dict_bytes) {
+    const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(dict_bytes, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.extract_customization(ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
  * @param {Uint8Array} dict_bytes
  * @returns {Uint8Array}
  */

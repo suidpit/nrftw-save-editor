@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const apply_changes: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+export const extract_customization: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const force_dump_all: (a: number, b: number) => [number, number, number, number];
 export const get_inventory_snapshot: (a: number) => [number, number, number];
 export const get_node_children: (a: number, b: number, c: number) => [number, number, number];

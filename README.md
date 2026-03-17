@@ -34,6 +34,7 @@ With that said, **please do not join co-op games with edited character without c
 This is the main panel of the tool. It provides:
 
 - Stats/attribute edits (leveling up, changing XP, gold, attributes).
+- Import the appearance from another character.
 - Inventory management. This includes:
   - Creating new items 
   - Editing existing items 
@@ -43,6 +44,16 @@ There are a few nice-to-have baked in. For instance, when creating equipment (we
 
 
 [DEMO IN HERE 📽️](https://youtu.be/KQcXF3q92ms?si=a-DRrrcmVOSfbOLo)
+
+## Note on customizing appearance
+
+The implemented flow to modify the apperance in the editor is to click the "Import from another character" button in the "EDIT APPEARANCE" panel.
+Therefore, the steps needed to change the appearance of an existing character are:
+1. Create another "throwaway" character with the desired appearance.
+2. Load your character in the editor.
+3. Import the appearance from the throwaway character save (you can spot the new `.cerimal` file in the `datastore` directory by looking at the creation date or just by inspecting the directory before and after creating the throaway and compare)
+
+Then, the edits to the appearance will be tracked just as every other edit, so you can "Download patched", replace the `.cerimal` file of your character, and next time you enter your realm, it should have the new appearance.
 
 # Inspector
 

@@ -115,8 +115,6 @@
 <style>
     .stats-panel {
         padding: 16px 12px;
-        overflow-y: auto;
-        height: 100%;
         box-sizing: border-box;
     }
 

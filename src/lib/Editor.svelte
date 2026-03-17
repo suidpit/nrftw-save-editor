@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { DocMeta } from "./bridge";
+    import AppearancePanel from "./AppearancePanel.svelte";
     import StatsPanel from "./StatsPanel.svelte";
     import InventoryGrid from "./InventoryGrid.svelte";
 
@@ -8,7 +9,10 @@
 
 <div class="editor-layout">
     <div class="column stats-col">
-        <StatsPanel {docs} />
+        <div class="stats-scroll">
+            <StatsPanel {docs} />
+            <AppearancePanel {docs} />
+        </div>
     </div>
     <div class="column inventory-col">
         <InventoryGrid {docs} />
@@ -32,5 +36,11 @@
 
     .stats-col {
         border-right: 1px solid var(--border-color, #4a3520);
+    }
+
+    .stats-scroll {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
     }
 </style>

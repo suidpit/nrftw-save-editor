@@ -212,6 +212,35 @@ pub fn patch_field(
     Ok(full_bytes)
 }
 
+/// Parse source save bytes without touching loaded state and return all
+/// Customization leaf fields from the CharacterMetadata doc as a JSON object
+/// mapping path → string value (e.g. `{"Customization.Beard": "9", ...}`).
+#[wasm_bindgen]
+pub fn extract_customization(bytes: &[u8], dict_bytes: &[u8]) -> Result<JsValue, JsValue> {
+    let docs = document::parse_all_docs(bytes, dict_bytes).map_err(js_err)?;
+
+    let meta_doc = docs
+        .iter()
+        .find(|d| fmt_type_ref(&d.schema.root_type_ref, &d.schema) == "Quantum.CharacterMetadata")
+        .ok_or_else(|| js_err("no CharacterMetadata doc found in source save"))?;
+
+    let customization = find_node(&meta_doc.root, "Customization")
+        .ok_or_else(|| js_err("Customization field not found in source save"))?;
+
+    let mut map = serde_json::Map::new();
+    for child in children_of(customization, "Customization", &meta_doc.schema) {
+        if child.meta.is_leaf {
+            if let Some(value) = child.meta.value {
+                map.insert(child.path, serde_json::Value::String(value));
+            }
+        }
+    }
+
+    Ok(JsValue::from_str(
+        &serde_json::to_string(&map).map_err(|e| js_err(e.to_string()))?,
+    ))
+}
+
 #[wasm_bindgen]
 pub fn apply_changes(changes_json: &str, dict_bytes: &[u8]) -> Result<Vec<u8>, JsValue> {
     let req: mutations::ApplyChangesRequest = serde_json::from_str(changes_json).map_err(js_err)?;

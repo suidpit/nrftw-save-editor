@@ -1,5 +1,6 @@
 import init, {
     apply_changes,
+    extract_customization,
     get_inventory_snapshot,
     get_node_children,
     get_root_primitives,
@@ -227,6 +228,27 @@ export function deleteItemChange(draft: ItemEditorDraft) {
             ],
         };
     });
+}
+
+/// Parse source save bytes (without touching loaded state) and stage all
+/// Customization fields as pending stat edits on the CharacterMetadata doc.
+/// Returns the number of fields imported.
+export async function importAppearanceFromBytes(
+    sourceBytes: Uint8Array,
+    metaDocIdx: number,
+): Promise<number> {
+    await bridgePromise;
+    const json = extract_customization(sourceBytes, dictBytes) as string;
+    const fields: Record<string, string> = JSON.parse(json);
+    const entries = Object.entries(fields);
+    if (entries.length === 0) return 0;
+
+    editStash.update((stash) => ({
+        ...stash,
+        [metaDocIdx]: { ...(stash[metaDocIdx] ?? {}), ...fields },
+    }));
+
+    return entries.length;
 }
 
 export function resetPendingChanges() {
