@@ -1,5 +1,6 @@
 :root {
   font-family: system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Code", "Fira Mono", monospace;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
@@ -26,24 +27,17 @@ body {
 }
 
 button {
-  border-radius: 6px;
-  border: 1px solid transparent;
-  padding: 0.5em 1em;
-  font-size: 0.9em;
-  font-weight: 500;
   font-family: inherit;
-  background-color: #2a2a2a;
   cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
   color: inherit;
 }
 
-button:hover {
-  border-color: #646cff;
+/* Hide number input spinners globally */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
 }
-
-button:focus,
-button:focus-visible {
-  outline: 2px solid #646cff;
-  outline-offset: 2px;
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

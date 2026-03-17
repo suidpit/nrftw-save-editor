@@ -83,8 +83,13 @@ impl WellKnownType {
             Self::Bool | Self::SByte | Self::Byte => (1, 1),
             Self::Short | Self::UShort | Self::Char => (2, 2),
             Self::Int | Self::UInt | Self::Float | Self::Lfp => (4, 4),
-            Self::Long | Self::ULong | Self::NInt | Self::NUInt
-            | Self::Double | Self::Fp | Self::AssetGuid => (8, 8),
+            Self::Long
+            | Self::ULong
+            | Self::NInt
+            | Self::NUInt
+            | Self::Double
+            | Self::Fp
+            | Self::AssetGuid => (8, 8),
             Self::Decimal | Self::Guid => (16, 4),
             Self::String => (0, 0),
             Self::Unknown(_) => (0, 0),
@@ -124,6 +129,19 @@ pub enum TypeDefinitionKind {
     Struct,
     Unmanaged,
     Enum,
+}
+
+/// Format a bytes_le UUID as a standard UUID string.
+pub fn format_guid_le(bytes_le: &[u8; 16]) -> String {
+    // bytes_le: first 3 components are little-endian, last 2 are big-endian
+    let a = u32::from_le_bytes(bytes_le[0..4].try_into().unwrap());
+    let b = u16::from_le_bytes(bytes_le[4..6].try_into().unwrap());
+    let c = u16::from_le_bytes(bytes_le[6..8].try_into().unwrap());
+    let d = &bytes_le[8..16];
+    format!(
+        "{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        a, b, c, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]
+    )
 }
 
 impl TypeDefinitionKind {

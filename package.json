@@ -7,6 +7,7 @@
     "predev": "cd wasm && wasm-pack build --target web --out-dir ../src/wasm-pkg",
     "dev": "vite",
     "build": "vite build",
+    "build:pages": "vite build && node scripts/prepare-pages-catalog.mjs",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test:e2e": "playwright test"

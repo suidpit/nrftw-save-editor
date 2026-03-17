@@ -5,6 +5,10 @@
         searchCatalog,
         getScriptTypes,
         getAssetByGuid,
+        getEquipmentTargetByGuid,
+        getModifierDetailByGuid,
+        getPreexistingModifiersForAsset,
+        getSiteUrl,
         type CatalogRow,
         type AssetDetail,
     } from "./catalog";
@@ -13,43 +17,36 @@
     let selectedType = "";
     let scriptTypes: string[] = [];
     let results: CatalogRow[] = [];
+    let currentPage = 0;
+    const pageSize = 25;
     let catalogLoading = false;
     let catalogReady = false;
     let searching = false;
     let error = "";
     let debounceTimer: ReturnType<typeof setTimeout>;
 
+    $: pagedResults = results.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+    $: totalPages = Math.ceil(results.length / pageSize);
+
     let selectedAsset: AssetDetail | null = null;
     let assetLoading = false;
+    let selectedEquipment: ReturnType<typeof getEquipmentTargetByGuid> = null;
+    let selectedModifier: ReturnType<typeof getModifierDetailByGuid> = null;
+    let selectedLoadout: ReturnType<typeof getPreexistingModifiersForAsset> = [];
 
     let _catalogPromise: Promise<void> | null = null;
 
     function ensureCatalog(): Promise<void> {
-        console.log(
-            "[catalog] ensureCatalog called, catalogReady=",
-            catalogReady,
-            "catalogLoading=",
-            catalogLoading,
-            "hasPromise=",
-            !!_catalogPromise,
-        );
         if (!_catalogPromise) {
             _catalogPromise = (async () => {
                 if (catalogReady) return;
                 catalogLoading = true;
                 error = "";
                 try {
-                    console.log("[catalog] calling loadCatalog…");
                     await loadCatalog();
-                    console.log("[catalog] loadCatalog done");
                     catalogReady = true;
                     scriptTypes = getScriptTypes();
-                    console.log(
-                        "[catalog] ready, scriptTypes=",
-                        scriptTypes.length,
-                    );
                 } catch (e) {
-                    console.error("[catalog] ensureCatalog error:", e);
                     error = `Failed to load catalog: ${e}`;
                 } finally {
                     catalogLoading = false;
@@ -60,29 +57,24 @@
     }
 
     // Lazy load catalog on component mount
-    ensureCatalog();
+    void ensureCatalog();
 
     async function openDetail(guid: string) {
-        console.log(
-            "[catalog] openDetail guid=",
-            guid,
-            "catalogReady=",
-            catalogReady,
-        );
         if (!catalogReady) {
-            console.log("[catalog] waiting for ensureCatalog…");
             await ensureCatalog();
-            console.log(
-                "[catalog] ensureCatalog resolved, catalogReady=",
-                catalogReady,
-            );
         }
         selectedAsset = null;
         assetLoading = true;
         try {
             selectedAsset = getAssetByGuid(guid);
-        } catch (e) {
-            console.error("[catalog] getAssetByGuid error:", e);
+            selectedEquipment = getEquipmentTargetByGuid(guid);
+            selectedModifier = getModifierDetailByGuid(guid);
+            selectedLoadout = getPreexistingModifiersForAsset(guid, "", 20);
+        } catch {
+            selectedAsset = null;
+            selectedEquipment = null;
+            selectedModifier = null;
+            selectedLoadout = [];
         } finally {
             assetLoading = false;
         }
@@ -90,21 +82,22 @@
 
     // React to catalogTarget store (GUID navigation from tree)
     $: if ($catalogTarget !== null) {
-        console.log("[catalog] catalogTarget fired:", $catalogTarget);
         openDetail($catalogTarget);
         catalogTarget.set(null);
     }
 
-    async function doSearch(q: string, type: string) {
+    function doSearch(q: string, type: string) {
         if (!catalogReady) return;
         if (!q.trim() && !type) {
             results = [];
+            currentPage = 0;
             return;
         }
         searching = true;
         error = "";
         try {
-            results = searchCatalog(q.trim(), 50, type);
+            results = searchCatalog(q.trim(), 500, type);
+            currentPage = 0;
         } catch (e) {
             error = String(e);
         } finally {
@@ -174,7 +167,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {#each results as row (row.guid)}
+                    {#each pagedResults as row (row.guid)}
                         <tr
                             class:selected={selectedAsset?.guid === row.guid}
                             on:click={() => openDetail(row.guid)}
@@ -196,6 +189,23 @@
                     {/each}
                 </tbody>
             </table>
+            {#if totalPages > 1}
+                <div class="pagination">
+                    <button
+                        class="page-btn"
+                        disabled={currentPage === 0}
+                        on:click={() => (currentPage -= 1)}>‹ Prev</button
+                    >
+                    <span class="page-info"
+                        >{currentPage + 1} / {totalPages} ({results.length} results)</span
+                    >
+                    <button
+                        class="page-btn"
+                        disabled={currentPage >= totalPages - 1}
+                        on:click={() => (currentPage += 1)}>Next ›</button
+                    >
+                </div>
+            {/if}
         {:else if catalogReady && !query && !selectedType}
             <div class="status hint">
                 Type to search, or pick a type to browse.
@@ -261,8 +271,69 @@
                                 ></tr
                             >
                         {/if}
+                        {#if selectedAsset.entryVersion}
+                            <tr
+                                ><td class="field-key">Catalog Version</td><td
+                                    class="field-val"
+                                    >{selectedAsset.entryVersion}</td
+                                ></tr
+                            >
+                        {/if}
+                        {#if selectedAsset.sitePath}
+                            <tr
+                                ><td class="field-key">DB Link</td><td class="field-val"
+                                    ><a class="detail-link" href={getSiteUrl(selectedAsset.sitePath)} target="_blank" rel="noreferrer">Open site entry</a></td
+                                ></tr
+                            >
+                        {:else if selectedAsset.entryVersion === "v1"}
+                            <tr
+                                ><td class="field-key">DB Link</td><td class="field-val"
+                                    >No site details</td
+                                ></tr
+                            >
+                        {/if}
                     </tbody>
                 </table>
+
+                {#if selectedEquipment}
+                    <div class="extra-header">Equipment Details</div>
+                    <table class="field-table">
+                        <tbody>
+                            <tr><td class="field-key">Target</td><td class="field-val">{selectedEquipment.targetKind}{selectedEquipment.targetSubkind ? ` / ${selectedEquipment.targetSubkind}` : ""}</td></tr>
+                            <tr><td class="field-key">Handling</td><td class="field-val">{selectedEquipment.handling ?? "—"}</td></tr>
+                            <tr><td class="field-key">Rune Slots</td><td class="field-val">{selectedEquipment.runeSlots ?? "—"}</td></tr>
+                            <tr><td class="field-key">Gem Slots</td><td class="field-val">{selectedEquipment.gemSlots ?? "—"}</td></tr>
+                        </tbody>
+                    </table>
+                {/if}
+
+                {#if selectedModifier}
+                    <div class="extra-header">Modifier Details</div>
+                    <table class="field-table">
+                        <tbody>
+                            <tr><td class="field-key">Kind</td><td class="field-val">{selectedModifier.modifierKind ?? "—"}</td></tr>
+                            <tr><td class="field-key">Title</td><td class="field-val">{selectedModifier.title}</td></tr>
+                            <tr><td class="field-key">Facet</td><td class="field-val">{selectedModifier.isFacet ? "Yes" : "No"}</td></tr>
+                            <tr><td class="field-key">Effect</td><td class="field-val">{selectedModifier.effectText ?? "—"}</td></tr>
+                            <tr><td class="field-key">Description</td><td class="field-val">{selectedModifier.descriptionText ?? "—"}</td></tr>
+                            <tr><td class="field-key">Only on</td><td class="field-val">{selectedModifier.onlyOnItems ?? "—"}</td></tr>
+                        </tbody>
+                    </table>
+                {/if}
+
+                {#if selectedLoadout.length > 0}
+                    <div class="extra-header">Pre-existing Modifiers</div>
+                    <table class="field-table">
+                        <tbody>
+                            {#each selectedLoadout as modifier}
+                                <tr>
+                                    <td class="field-key">{modifier.modifierKind}</td>
+                                    <td class="field-val">{modifier.displayName || modifier.name}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                {/if}
 
                 {#if selectedAsset.data && Object.keys(selectedAsset.data).length > 0}
                     <div class="extra-header">Extra fields</div>
@@ -406,11 +477,18 @@
         color: #ccc;
         word-break: break-all;
     }
+    .detail-link {
+        color: #c8a050;
+        text-decoration: none;
+    }
+    .detail-link:hover {
+        text-decoration: underline;
+    }
     .field-pre {
         margin: 0;
         white-space: pre-wrap;
         word-break: break-word;
-        font-family: "Cascadia Code", "Fira Mono", monospace;
+        font-family: var(--font-mono);
         font-size: 0.9em;
         color: #9cdcfe;
         background: #1a1a1a;
@@ -535,6 +613,36 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+    .pagination {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 4px;
+        border-top: 1px solid #2e2e2e;
+    }
+    .page-btn {
+        background: #1a1a1a;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: #ccc;
+        padding: 4px 10px;
+        font-size: 0.85em;
+        cursor: pointer;
+    }
+    .page-btn:hover:not(:disabled) {
+        border-color: #646cff;
+        color: #fff;
+    }
+    .page-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+    .page-info {
+        flex: 1;
+        text-align: center;
+        font-size: 0.82em;
+        color: #666;
     }
     .type-col {
         color: #888;

@@ -1,0 +1,703 @@
+{
+  "items": [
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "battlecryRing",
+      "item": {
+        "guid": "751271724735675494",
+        "name": "battlecryRing",
+        "displayName": "Battlecry Ring",
+        "scriptType": "RingsDataAsset",
+        "path": "Assets/quantumAssetDatabase/entities/items/ringsAndTrinkets/rings/unique/battlecryRing.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "2213595072136682186",
+          "name": "lifestealDisabled",
+          "displayName": "Lifesteal Disabled",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/battlecryRing/lifestealDisabled.asset"
+        },
+        {
+          "guid": "3602506192533382613",
+          "name": "spendHealthInsteadFocus",
+          "displayName": "Spend Health Instead Focus",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/battlecryRing/spendHealthInsteadFocus.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "ringOfDetermination",
+      "item": {
+        "guid": "1364019954330509277",
+        "name": "ringOfDetermination",
+        "displayName": "Ring Of Determination",
+        "scriptType": "RingsDataAsset",
+        "path": "Assets/quantumAssetDatabase/entities/items/ringsAndTrinkets/rings/unique/ringOfDetermination.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "1992428959754387642",
+          "name": "focusCostScalesWithMissingHealth",
+          "displayName": "Focus Cost Scales With Missing Health",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/ringOfDetermination/focusCostScalesWithMissingHealth.asset"
+        },
+        {
+          "guid": "2966434728002973997",
+          "name": "spendHealthIfThereIsNoFocus",
+          "displayName": "Spend Health If There Is No Focus",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/ringOfDetermination/spendHealthIfThereIsNoFocus.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "scarletRing",
+      "item": {
+        "guid": "4058128398977305389",
+        "name": "scarletRing",
+        "displayName": "Scarlet Ring",
+        "scriptType": "RingsDataAsset",
+        "path": "Assets/quantumAssetDatabase/entities/items/ringsAndTrinkets/rings/unique/scarletRing.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "367505262251769955",
+          "name": "swapMaxHealthAndMaxFocus",
+          "displayName": "Swap Max Health And Max Focus",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/scarletRing/swapMaxHealthAndMaxFocus.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "serendipityRing",
+      "item": {
+        "guid": "1529508880200853573",
+        "name": "serendipityRing",
+        "displayName": "Serendipity Ring",
+        "scriptType": "RingsDataAsset",
+        "path": "Assets/quantumAssetDatabase/entities/items/ringsAndTrinkets/rings/unique/serendipityRing.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "2473415399176050862",
+          "name": "delayedHealing",
+          "displayName": "Delayed Healing",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/serendipityRing/delayedHealing.asset"
+        },
+        {
+          "guid": "2109608512654201310",
+          "name": "healingIncreased",
+          "displayName": "Healing Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/rings/unique/serendipityRing/healingIncreased.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "bleedersDelight",
+      "item": {
+        "guid": "3255943684902281669",
+        "name": "bleedersDelight",
+        "displayName": "Bleeders Delight",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/dualWield/doubleDaggers/bleedersDelight/bleedersDelight.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "652244846934901916",
+          "name": "attackSpeedIncreasedAfterKill",
+          "displayName": "Attack Speed Increased After Kill",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/bleedersDelight/attackSpeedIncreasedAfterKill.asset"
+        },
+        {
+          "guid": "257520282465529409",
+          "name": "chanceStaggerDamageOnDamageDealt",
+          "displayName": "Chance Stagger Damage On Damage Dealt",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/bleedersDelight/chanceStaggerDamageOnDamageDealt.asset"
+        },
+        {
+          "guid": "1314248457088770189",
+          "name": "normalDamageIncreasedAfterChargedAttack",
+          "displayName": "Normal Damage Increased After Charged Attack",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/bleedersDelight/normalDamageIncreasedAfterChargedAttack.asset"
+        },
+        {
+          "guid": "4126704300374748556",
+          "name": "runStaminaCostRemoved",
+          "displayName": "Run Stamina Cost Removed",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/bleedersDelight/runStaminaCostRemoved.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "cinderAndStone",
+      "item": {
+        "guid": "515194947731975707",
+        "name": "cinderAndStone",
+        "displayName": "Cinder And Stone",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/twoHanded/greatHammers/cinderAndStone/cinderAndStone.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "2112281776579248946",
+          "name": "cinderAndStone0",
+          "displayName": "Cinder And Stone0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/cinderAndStone/cinderAndStone0.asset"
+        },
+        {
+          "guid": "3763790543182652507",
+          "name": "cinderAndStone1",
+          "displayName": "Cinder And Stone1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/cinderAndStone/cinderAndStone1.asset"
+        },
+        {
+          "guid": "1852489147583360519",
+          "name": "cinderAndStone2",
+          "displayName": "Cinder And Stone2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/cinderAndStone/cinderAndStone2.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "corpseSmearedBlade",
+      "item": {
+        "guid": "1718703032196161524",
+        "name": "corpseSmearedBlade",
+        "displayName": "Corpse Smeared Blade",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/twoHanded/greatSwords/corpseSmearedBlade/corpseSmearedBlade.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "3012188376542765429",
+          "name": "corpseSmearedBlade1",
+          "displayName": "Corpse Smeared Blade1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/corpseSmearedBlade/corpseSmearedBlade1.asset"
+        },
+        {
+          "guid": "4534719092779308413",
+          "name": "corpseSmearedBlade2",
+          "displayName": "Corpse Smeared Blade2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/corpseSmearedBlade/corpseSmearedBlade2.asset"
+        },
+        {
+          "guid": "1878978975835914024",
+          "name": "corpseSmearedBlade3",
+          "displayName": "Corpse Smeared Blade3",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/corpseSmearedBlade/corpseSmearedBlade3.asset"
+        },
+        {
+          "guid": "1812072478131321654",
+          "name": "corspeSmearedBlade0",
+          "displayName": "Corspe Smeared Blade0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/corpseSmearedBlade/corspeSmearedBlade0.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "fallingSky",
+      "item": {
+        "guid": "3044636054273618990",
+        "name": "fallingSky",
+        "displayName": "Falling Sky",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/twoHanded/staves/fallingSky/fallingSky.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "2168856820286024763",
+          "name": "buffSpecialDamageAfterSpecial",
+          "displayName": "Buff Special Damage After Special",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/fallingSky/buffSpecialDamageAfterSpecial.asset"
+        },
+        {
+          "guid": "781525658515054458",
+          "name": "damageScalesWithCurrentFocus",
+          "displayName": "Damage Scales With Current Focus",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/fallingSky/damageScalesWithCurrentFocus.asset"
+        },
+        {
+          "guid": "2177891059001774888",
+          "name": "gainStaminaOnFocusUse",
+          "displayName": "Gain Stamina On Focus Use",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/fallingSky/gainStaminaOnFocusUse.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "falsteadsBarricade",
+      "item": {
+        "guid": "3932832076605574338",
+        "name": "falsteadsBarricade",
+        "displayName": "Falsteads Barricade",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/offHanded/shields/greatshields/falsteadsBarricade/falsteadsBarricade.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "4598076707073696963",
+          "name": "dealDamageOnBlock",
+          "displayName": "Deal Damage On Block",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/falsteadsBarricade/dealDamageOnBlock.asset"
+        },
+        {
+          "guid": "502646495457951611",
+          "name": "gainFocusOnBlock",
+          "displayName": "Gain Focus On Block",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/falsteadsBarricade/gainFocusOnBlock.asset"
+        },
+        {
+          "guid": "4270378076816309887",
+          "name": "indestructible",
+          "displayName": "Indestructible",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/falsteadsBarricade/indestructible.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "falsteadsFury",
+      "item": {
+        "guid": "948075017379076618",
+        "name": "falsteadsFury",
+        "displayName": "Falsteads Fury",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/oneHanded/straightSwords/falsteadsFury/falsteadsFury.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "3925844837724159742",
+          "name": "damageIncreasedAgainstLargeEnemies",
+          "displayName": "Damage Increased Against Large Enemies",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/falsteadsFury/damageIncreasedAgainstLargeEnemies.asset"
+        },
+        {
+          "guid": "4352250772589094353",
+          "name": "damageIncreasedAtFullHealth",
+          "displayName": "Damage Increased At Full Health",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/falsteadsFury/damageIncreasedAtFullHealth.asset"
+        },
+        {
+          "guid": "1780272192943354246",
+          "name": "dealDamageOnParry",
+          "displayName": "Deal Damage On Parry",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/falsteadsFury/dealDamageOnParry.asset"
+        },
+        {
+          "guid": "1197761804335634687",
+          "name": "maxHealthIncreased",
+          "displayName": "Max Health Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/falsteadsFury/maxHealthIncreased.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "fetidClub",
+      "item": {
+        "guid": "73591681747770995",
+        "name": "fetidClub",
+        "displayName": "Fetid Club",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/twoHanded/greatClubs/fetidClub/fetidClub.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "3599337120815036476",
+          "name": "damageScalesWithWeight",
+          "displayName": "Damage Scales With Weight",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/fetidClub/damageScalesWithWeight.asset"
+        },
+        {
+          "guid": "1907886169833982554",
+          "name": "damageTakenDecreasedWhileCharging",
+          "displayName": "Damage Taken Decreased While Charging",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/fetidClub/damageTakenDecreasedWhileCharging.asset"
+        },
+        {
+          "guid": "1144557706625752161",
+          "name": "staminaRefillOnStagger",
+          "displayName": "Stamina Refill On Stagger",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/fetidClub/staminaRefillOnStagger.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "glimmeringBulwark",
+      "item": {
+        "guid": "3687313682536072122",
+        "name": "glimmeringBulwark",
+        "displayName": "Glimmering Bulwark",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/offHanded/shields/lightShields/glimmeringBulwark/glimmeringBulwark.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "2018581599633516237",
+          "name": "glimmeringBulwark0",
+          "displayName": "Glimmering Bulwark0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/glimmeringBulwark/glimmeringBulwark0.asset"
+        },
+        {
+          "guid": "4082101561168456968",
+          "name": "glimmeringBulwark1",
+          "displayName": "Glimmering Bulwark1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/glimmeringBulwark/glimmeringBulwark1.asset"
+        },
+        {
+          "guid": "1594296767558736031",
+          "name": "glimmeringBulwark2",
+          "displayName": "Glimmering Bulwark2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/glimmeringBulwark/glimmeringBulwark2.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "heartsDesire",
+      "item": {
+        "guid": "3000207142235992474",
+        "name": "heartsDesire",
+        "displayName": "Hearts Desire",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/offHanded/shields/mediumShields/heartsDesire/heartsDesire.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "1233996235030818505",
+          "name": "healingIncreased",
+          "displayName": "Healing Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/heartsDesire/healingIncreased.asset"
+        },
+        {
+          "guid": "3310036235981640990",
+          "name": "regenHealthWhileBlocking",
+          "displayName": "Regen Health While Blocking",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/heartsDesire/regenHealthWhileBlocking.asset"
+        },
+        {
+          "guid": "250595692052523374",
+          "name": "staggerResistanceIncreased",
+          "displayName": "Stagger Resistance Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/shields/heartsDesire/staggerResistanceIncreased.asset"
+        }
+      ]
+    },
+    {
+      "source": "named_enchantment_bundle_match",
+      "bundleFolder": "cherryWoodBow",
+      "item": {
+        "guid": "1023863541289577995",
+        "name": "laqueredBow",
+        "displayName": "Laquered Bow",
+        "scriptType": "WeaponStaticDataAsset"
+      },
+      "enchantments": [
+        {
+          "guid": "504640765995381585",
+          "name": "lacqueredBow0",
+          "displayName": "Lacquered Bow0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/bows/cherryWoodBow/lacqueredBow0.asset"
+        },
+        {
+          "guid": "379191337720818174",
+          "name": "lacqueredBow1",
+          "displayName": "Lacquered Bow1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/bows/cherryWoodBow/lacqueredBow1.asset"
+        },
+        {
+          "guid": "828187784328617063",
+          "name": "lacqueredBow2",
+          "displayName": "Lacquered Bow2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/bows/cherryWoodBow/lacqueredBow2.asset"
+        },
+        {
+          "guid": "3455169888559379068",
+          "name": "lacqueredBow3",
+          "displayName": "Lacquered Bow3",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/bows/cherryWoodBow/lacqueredBow3.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "midnightBlade",
+      "item": {
+        "guid": "3220022798894100568",
+        "name": "midnightBlade",
+        "displayName": "Midnight Blade",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/oneHanded/daggers/midnightBlade/midnightBlade.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "678290240872653236",
+          "name": "gainFocusOnParry",
+          "displayName": "Gain Focus On Parry",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/midnightBlade/gainFocusOnParry.asset"
+        },
+        {
+          "guid": "691658876148210236",
+          "name": "refillFocusOnBackstab",
+          "displayName": "Refill Focus On Backstab",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/midnightBlade/refillFocusOnBackstab.asset"
+        },
+        {
+          "guid": "1758728209324592189",
+          "name": "shockBuildupIncreasedAfterShock",
+          "displayName": "Shock Buildup Increased After Shock",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/midnightBlade/shockBuildupIncreasedAfterShock.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "proudLance",
+      "item": {
+        "guid": "3950237475393754292",
+        "name": "proudLance",
+        "displayName": "Proud Lance",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/oneHanded/spears/proudLance/proudLance.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "3898950236653383214",
+          "name": "lightningDamageIncreased",
+          "displayName": "Lightning Damage Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/proudLance/lightningDamageIncreased.asset"
+        },
+        {
+          "guid": "4202524217464404668",
+          "name": "lightningDamageOverrideAfterSprint",
+          "displayName": "Lightning Damage Override After Sprint",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/proudLance/lightningDamageOverrideAfterSprint.asset"
+        },
+        {
+          "guid": "2382215682306832277",
+          "name": "movementSpeedIncreased",
+          "displayName": "Movement Speed Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/proudLance/movementSpeedIncreased.asset"
+        },
+        {
+          "guid": "4233651011173565891",
+          "name": "proudLance0",
+          "displayName": "Proud Lance0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/proudLance/proudLance0.asset"
+        },
+        {
+          "guid": "1091295867930102213",
+          "name": "proudLance1",
+          "displayName": "Proud Lance1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/proudLance/proudLance1.asset"
+        },
+        {
+          "guid": "2597202697227730387",
+          "name": "proudLance2",
+          "displayName": "Proud Lance2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/proudLance/proudLance2.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "sinew",
+      "item": {
+        "guid": "423079541508086085",
+        "name": "sinew",
+        "displayName": "Sinew",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/oneHanded/rapiers/sinew/sinew.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "3975442481698060442",
+          "name": "damageIncreasedAgainstLowHealth",
+          "displayName": "Damage Increased Against Low Health",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/sinew/damageIncreasedAgainstLowHealth.asset"
+        },
+        {
+          "guid": "4179412382798171250",
+          "name": "lifestealIncreased",
+          "displayName": "Lifesteal Increased",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/sinew/lifestealIncreased.asset"
+        },
+        {
+          "guid": "2318817657582959080",
+          "name": "staminaRefillOnParry",
+          "displayName": "Stamina Refill On Parry",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/sinew/staminaRefillOnParry.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "tarnishedWand",
+      "item": {
+        "guid": "4292325459385536380",
+        "name": "tarnishedWand",
+        "displayName": "Tarnished Wand",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/oneHanded/wands/tarnishedWand/tarnishedWand.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "3249968609093512040",
+          "name": "tarnishedWand0",
+          "displayName": "Tarnished Wand0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/tarnishedWand/tarnishedWand0.asset"
+        },
+        {
+          "guid": "3070661345559043283",
+          "name": "tarnishedWand1",
+          "displayName": "Tarnished Wand1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/tarnishedWand/tarnishedWand1.asset"
+        },
+        {
+          "guid": "1401393681202917524",
+          "name": "tarnishedWand2",
+          "displayName": "Tarnished Wand2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/tarnishedWand/tarnishedWand2.asset"
+        }
+      ]
+    },
+    {
+      "source": "named_enchantment_bundle_match",
+      "bundleFolder": "thedawnnevercomes",
+      "item": {
+        "guid": "2207445515709382301",
+        "name": "theDawnNeverComes",
+        "displayName": "The Dawn Never Comes",
+        "scriptType": "WeaponStaticDataAsset"
+      },
+      "enchantments": [
+        {
+          "guid": "4029455093925925465",
+          "name": "thedawnnevercomes0",
+          "displayName": "Thedawnnevercomes0",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/thedawnnevercomes/thedawnnevercomes0.asset"
+        },
+        {
+          "guid": "1542865266355096283",
+          "name": "thedawnnevercomes1",
+          "displayName": "Thedawnnevercomes1",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/thedawnnevercomes/thedawnnevercomes1.asset"
+        },
+        {
+          "guid": "720048228785541884",
+          "name": "thedawnnevercomes2",
+          "displayName": "Thedawnnevercomes2",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/thedawnnevercomes/thedawnnevercomes2.asset"
+        },
+        {
+          "guid": "431738835416662630",
+          "name": "thedawnnevercomes3",
+          "displayName": "Thedawnnevercomes3",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/thedawnnevercomes/thedawnnevercomes3.asset"
+        }
+      ]
+    },
+    {
+      "source": "direct_bundle_folder",
+      "bundleFolder": "windOfDeath",
+      "item": {
+        "guid": "1575516722160757798",
+        "name": "windOfDeath",
+        "displayName": "Wind Of Death",
+        "scriptType": "WeaponStaticDataAsset",
+        "path": "Assets/armaments/root/oneHanded/wakizashis/windOfDeath/windOfDeath.asset"
+      },
+      "enchantments": [
+        {
+          "guid": "2144056827446874320",
+          "name": "damageScalesWithMissingHealth",
+          "displayName": "Damage Scales With Missing Health",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/windOfDeath/damageScalesWithMissingHealth.asset"
+        },
+        {
+          "guid": "3523944895583576333",
+          "name": "dodgeStaminaCost",
+          "displayName": "Dodge Stamina Cost",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/windOfDeath/dodgeStaminaCost.asset"
+        },
+        {
+          "guid": "1478738670889393067",
+          "name": "healthLossOnDamageDealt",
+          "displayName": "Health Loss On Damage Dealt",
+          "scriptType": "EnchantmentDataAsset",
+          "path": "Assets/quantumAssetDatabase/enchantments/unique/weapons/windOfDeath/healthLossOnDamageDealt.asset"
+        }
+      ]
+    }
+  ]
+}

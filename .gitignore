@@ -25,3 +25,9 @@ dist-ssr
 
 # Rust build artifacts
 wasm/target/
+datastore
+**/__pycache__/
+cache/
+public/catalog.raw.db
+test-results/
+archive/

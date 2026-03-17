@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const SAVE_FILE = path.resolve(__dirname, '../../examples/char_save_filled.cerimal')
+const SAVE_FILE = path.resolve(__dirname, '../examples/char_save_filled.cerimal')
 
 // Equipment slots from the save file → expected catalog display names
 const EQUIPMENT = [
@@ -17,15 +17,18 @@ test.describe('Equipment GUID → Catalog lookup', () => {
     await page.goto('/')
 
     // Wait for WASM boot
-    await page.locator('.boot-status.ready').waitFor({ timeout: 30_000 })
+    await page.locator('.boot-status.ready').waitFor({ timeout: 15_000 })
 
     // Upload save file via the hidden file input
     const fileInput = page.locator('input[type="file"][accept=".cerimal"]').first()
     await fileInput.setInputFiles(SAVE_FILE)
 
-    // Wait for file to be parsed and tree to render
-    await page.locator('.drop-zone.has-file').waitFor({ timeout: 15_000 })
-    await page.locator('.tree .node').first().waitFor({ timeout: 10_000 })
+    // Wait for file to be parsed and main layout to appear
+    await page.locator('.main-layout').waitFor({ timeout: 10_000 })
+
+    // Switch to the Inspector tab where the tree lives
+    await page.locator('button.tab', { hasText: 'Inspector' }).click()
+    await page.locator('.tree .node').first().waitFor({ timeout: 8_000 })
   })
 
   for (const equip of EQUIPMENT) {
@@ -37,9 +40,7 @@ test.describe('Equipment GUID → Catalog lookup', () => {
       await slotNode.first().locator('.expander').click()
 
       // The "Id" child is a leaf with type ASSETGUID — rendered as a .guid-link button
-      const guidLink = page.locator('.tree button.guid-link', {
-        hasText: equip.guid,
-      })
+      const guidLink = page.locator(`.tree button.guid-link[data-guid="${equip.guid}"]`)
       await guidLink.waitFor({ timeout: 5_000 })
 
       // Click the GUID link → switches to Catalog tab and triggers openDetail
@@ -50,12 +51,15 @@ test.describe('Equipment GUID → Catalog lookup', () => {
 
       // Wait for the detail pane to appear (catalog.db ~23MB loads first time)
       const detailPane = page.locator('.detail-pane')
-      await detailPane.waitFor({ timeout: 45_000 })
+      await detailPane.waitFor({ timeout: 10_000 })
 
       // Verify the resolved asset name
       await expect(detailPane.locator('h2.detail-name')).toContainText(equip.name, {
         timeout: 5_000,
       })
+      await expect(detailPane).toContainText('Catalog Version')
+      await expect(detailPane).toContainText('v2')
+      await expect(detailPane.locator('a.detail-link')).toHaveAttribute('href', /norestforthewicked\.gg\/db\//)
     })
   }
 })

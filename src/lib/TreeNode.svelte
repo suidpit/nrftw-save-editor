@@ -14,6 +14,7 @@
         onGuidClick: (guid: string) => void;
         edits: Writable<Record<string, string>>;
         onEditValue: (path: string, value: string) => void;
+        readonly?: boolean;
     }
 
     const EDITABLE_TYPES = new Set([
@@ -35,7 +36,7 @@
         "NUINT",
     ]);
 
-    const { cache, expanded, loadChildren, onGuidClick, edits, onEditValue } =
+    const { cache, expanded, loadChildren, onGuidClick, edits, onEditValue, readonly } =
         getContext<TreeCtx>("tree");
 
     $: isExpanded = $expanded.has(node.path);
@@ -47,7 +48,7 @@
                 : "loaded"
             : "idle";
 
-    $: isEditable = node.isLeaf && EDITABLE_TYPES.has(node.type);
+    $: isEditable = !readonly && node.isLeaf && EDITABLE_TYPES.has(node.type);
     $: pendingValue = $edits[node.path];
     $: hasEdit = pendingValue !== undefined && pendingValue !== "";
     $: displayValue = hasEdit ? pendingValue : node.value;
@@ -123,8 +124,11 @@
 
     {#if node.value !== null && node.value !== undefined}
         {#if node.type === "ASSETGUID" && node.guid != null && node.guid != "0"}
-            <button class="guid-link" on:click={() => onGuidClick(node.guid!)}
-                >{getAssetByGuid(node.value)!.name}</button
+            <button
+                class="guid-link"
+                data-guid={node.guid}
+                on:click={() => onGuidClick(node.guid!)}
+                >{getAssetByGuid(node.value)?.name ?? node.guid}</button
             >
         {:else if isEditable}
             {#if editing}

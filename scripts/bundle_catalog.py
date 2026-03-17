@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "Pillow",
+#     "UnityPy",
+# ]
+# ///
 """
 Parse Unity asset bundles and build a SQLite catalog mapping AssetGuid → item info.
 

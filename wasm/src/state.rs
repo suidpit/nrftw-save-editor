@@ -1,19 +1,12 @@
+use crate::document::ParsedDoc;
 use std::cell::RefCell;
-use crate::parser::content::ContentNode;
-use crate::parser::schema::CerimalSchema;
-use crate::parser::types::CompressionType;
 
-pub struct ParsedDoc {
-    pub raw_bytes: Vec<u8>,
-    pub schema_bytes: Vec<u8>,
-    pub content_bytes: Vec<u8>,  // decompressed content
-    pub comp_type: CompressionType,
-    pub schema: CerimalSchema,
-    pub root: ContentNode,
-}
-
+// Thread-local storage is used here because WASM is single-threaded and
+// wasm-bindgen doesn't support passing complex owned state across FFI calls.
+// The parsed documents are stored once by `parse_save` and then accessed by
+// index from subsequent JS calls (get_node_children, patch_field, etc.).
 thread_local! {
-    static DOCS: RefCell<Vec<ParsedDoc>> = RefCell::new(Vec::new());
+    static DOCS: RefCell<Vec<ParsedDoc>> = const { RefCell::new(Vec::new()) };
 }
 
 pub fn with_docs<F, R>(f: F) -> R

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use super::reader::Reader;
 use super::types::{CerimalTypeReference, TypeDefinitionKind, WellKnownType};
+use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Schema data structures
@@ -17,9 +17,8 @@ pub struct CerimalHeader {
 }
 
 impl CerimalHeader {
-    pub fn parse(r: &mut Reader) -> Result<Self, String> {
-        let magic_bytes = r.read_bytes(7)?;
-        let magic: [u8; 7] = magic_bytes.try_into().unwrap();
+    pub fn parse(r: &mut Reader<'_>) -> Result<Self, String> {
+        let magic = r.read_array()?;
         if &magic != b"CERIMAL" {
             return Err(format!("Bad magic: {:?}", magic));
         }
@@ -33,7 +32,14 @@ impl CerimalHeader {
             super::types::CompressionType::Zstd
         };
         let checksum = r.u64_le()?;
-        Ok(Self { magic, version, schema_size, content_size, comp_type, checksum })
+        Ok(Self {
+            magic,
+            version,
+            schema_size,
+            content_size,
+            comp_type,
+            checksum,
+        })
     }
 }
 
@@ -45,29 +51,45 @@ pub struct CerimalBaseInfo {
 }
 
 impl CerimalBaseInfo {
-    pub fn parse(r: &mut Reader) -> Result<Self, String> {
+    pub fn parse(r: &mut Reader<'_>) -> Result<Self, String> {
+        // Packed u32 layout:
+        //   bits  0-23: total byte size of this base-info section (including this u32)
+        //   bit     24: has_base flag (1 = type has a base class)
+        //   bits 25-31: number of implemented interfaces
         let raw = r.u32_le()?;
         let bsize = (raw & 0x00FF_FFFF) as usize;
         let has_base = (raw & 0x0100_0000) != 0;
         let interface_count = raw >> 25;
         // bsize includes the 4-byte raw field itself
         let body_len = bsize.saturating_sub(4);
-        let body_bytes = r.read_bytes(body_len)?;
-        let mut body = Reader::new(body_bytes);
+        let body_bytes = r.read_slice(body_len)?;
+        let mut body = Reader::from_slice(body_bytes);
         let base_type_ref = if has_base {
             Some(parse_type_reference(&mut body)?)
         } else {
             None
         };
-        Ok(Self { has_base, base_type_ref, interface_count })
+        Ok(Self {
+            has_base,
+            base_type_ref,
+            interface_count,
+        })
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum ClassMember {
-    List { element_type: CerimalTypeReference },
-    Dict { key_type: CerimalTypeReference, value_type: CerimalTypeReference },
-    Field { name: String, type_ref: CerimalTypeReference },
+    List {
+        element_type: CerimalTypeReference,
+    },
+    Dict {
+        key_type: CerimalTypeReference,
+        value_type: CerimalTypeReference,
+    },
+    Field {
+        name: String,
+        type_ref: CerimalTypeReference,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +97,8 @@ pub struct StructMember {
     pub name: String,
     pub type_ref: CerimalTypeReference,
 }
+
+pub type UnmanagedFieldLayout<'a> = (&'a str, usize, &'a CerimalTypeReference);
 
 #[derive(Debug, Clone)]
 pub struct EnumVariant {
@@ -129,7 +153,7 @@ pub struct CerimalSchema {
 // Type reference parsing
 // ---------------------------------------------------------------------------
 
-pub fn parse_type_reference(r: &mut Reader) -> Result<CerimalTypeReference, String> {
+pub fn parse_type_reference(r: &mut Reader<'_>) -> Result<CerimalTypeReference, String> {
     let header = r.u8()?;
     let kind = header & 0x3;
     match kind {
@@ -140,7 +164,10 @@ pub fn parse_type_reference(r: &mut Reader) -> Result<CerimalTypeReference, Stri
         1 => {
             let rank = (header >> 3) as u32;
             let element = parse_type_reference(r)?;
-            Ok(CerimalTypeReference::Array { rank, element: Box::new(element) })
+            Ok(CerimalTypeReference::Array {
+                rank,
+                element: Box::new(element),
+            })
         }
         2 => {
             let index = (header >> 3) as u32;
@@ -148,8 +175,7 @@ pub fn parse_type_reference(r: &mut Reader) -> Result<CerimalTypeReference, Stri
         }
         3 => {
             let type_arg_count = (header >> 3) as usize;
-            let guid_bytes = r.read_bytes(16)?;
-            let guid: [u8; 16] = guid_bytes.try_into().unwrap();
+            let guid = r.read_array()?;
             let mut type_args = Vec::with_capacity(type_arg_count);
             for _ in 0..type_arg_count {
                 type_args.push(parse_type_reference(r)?);
@@ -164,42 +190,48 @@ pub fn parse_type_reference(r: &mut Reader) -> Result<CerimalTypeReference, Stri
 // Schema parsing
 // ---------------------------------------------------------------------------
 
-pub fn parse_schema(r: &mut Reader) -> Result<CerimalSchema, String> {
-    // Schema header: global_version + type_defs_size + type_defs_count + name_strings_size
-    let _global_version = r.u32_le()?;
-    let _type_defs_size = r.u32_le()?;
-    let type_defs_count = r.u32_le()? as usize;
-    let _name_strings_size = r.u32_le()?;
+impl CerimalSchema {
+    pub fn parse(r: &mut Reader<'_>) -> Result<Self, String> {
+        // Schema header: global_version + type_defs_size + type_defs_count + name_strings_size
+        let _global_version = r.u32_le()?;
+        let _type_defs_size = r.u32_le()?;
+        let type_defs_count = r.u32_le()? as usize;
+        let _name_strings_size = r.u32_le()?;
 
-    // Parse type definitions
-    let mut type_defs: Vec<CerimalTypeDefinition> = Vec::with_capacity(type_defs_count);
-    for _ in 0..type_defs_count {
-        type_defs.push(parse_type_def(r)?);
+        // Parse type definitions
+        let mut type_defs: Vec<CerimalTypeDefinition> = Vec::with_capacity(type_defs_count);
+        for _ in 0..type_defs_count {
+            type_defs.push(parse_type_def(r)?);
+        }
+
+        // Parse name strings (one 7-bit-length-prefixed UTF-8 string per typedef)
+        for type_def in type_defs.iter_mut().take(type_defs_count) {
+            let name = r.read_7bit_name()?;
+            type_def.name = name;
+        }
+
+        // Root type reference
+        let root_type_ref = parse_type_reference(r)?;
+
+        // Build guid → index map
+        let mut guid_map = HashMap::new();
+        for (i, td) in type_defs.iter().enumerate() {
+            guid_map.insert(td.guid, i);
+        }
+
+        Ok(CerimalSchema {
+            type_defs,
+            root_type_ref,
+            guid_map,
+        })
     }
-
-    // Parse name strings (one 7-bit-length-prefixed UTF-8 string per typedef)
-    for i in 0..type_defs_count {
-        let name = r.read_7bit_name()?;
-        type_defs[i].name = name;
-    }
-
-    // Root type reference
-    let root_type_ref = parse_type_reference(r)?;
-
-    // Build guid → index map
-    let mut guid_map = HashMap::new();
-    for (i, td) in type_defs.iter().enumerate() {
-        guid_map.insert(td.guid, i);
-    }
-
-    Ok(CerimalSchema { type_defs, root_type_ref, guid_map })
 }
 
-fn parse_type_def(r: &mut Reader) -> Result<CerimalTypeDefinition, String> {
+fn parse_type_def(r: &mut Reader<'_>) -> Result<CerimalTypeDefinition, String> {
     let td_start = r.pos;
 
     // Fixed 28-byte header: size(4) + flags(4) + local_version(4) + guid(16)
-    let var_size = r.u32_le()? as usize;  // size of variable part after the 28-byte fixed header
+    let var_size = r.u32_le()? as usize; // size of variable part after the 28-byte fixed header
     let td_end = td_start + 28 + var_size;
 
     let flags = r.u32_le()?;
@@ -209,8 +241,7 @@ fn parse_type_def(r: &mut Reader) -> Result<CerimalTypeDefinition, String> {
     let member_count = ((flags >> 8) & 0x00FF_FFFF) as usize;
 
     let local_version = r.u32_le()?;
-    let guid_bytes = r.read_bytes(16)?;
-    let guid: [u8; 16] = guid_bytes.try_into().unwrap();
+    let guid = r.read_array()?;
 
     let kind = TypeDefinitionKind::from_u8(kind_raw)?;
 
@@ -249,7 +280,10 @@ fn parse_type_def(r: &mut Reader) -> Result<CerimalTypeDefinition, String> {
                 let value = r.unpack_enum_type(&underlying_type)?;
                 variants.push(EnumVariant { name, value });
             }
-            TypeDefMembers::Enum(EnumMembers { underlying_type, variants })
+            TypeDefMembers::Enum(EnumMembers {
+                underlying_type,
+                variants,
+            })
         }
     };
 
@@ -266,7 +300,7 @@ fn parse_type_def(r: &mut Reader) -> Result<CerimalTypeDefinition, String> {
     })
 }
 
-fn parse_class_member(r: &mut Reader) -> Result<ClassMember, String> {
+fn parse_class_member(r: &mut Reader<'_>) -> Result<ClassMember, String> {
     let kind = r.u8()?;
     match kind {
         0 => {
@@ -276,7 +310,10 @@ fn parse_class_member(r: &mut Reader) -> Result<ClassMember, String> {
         1 => {
             let key_type = parse_type_reference(r)?;
             let value_type = parse_type_reference(r)?;
-            Ok(ClassMember::Dict { key_type, value_type })
+            Ok(ClassMember::Dict {
+                key_type,
+                value_type,
+            })
         }
         2 => {
             let name = r.read_name()?;
@@ -305,7 +342,7 @@ pub fn fmt_type_ref(type_ref: &CerimalTypeReference, schema: &CerimalSchema) -> 
             let name = if let Some(&idx) = schema.guid_map.get(guid) {
                 schema.type_defs[idx].name.clone()
             } else {
-                format_guid_le(guid)
+                super::types::format_guid_le(guid)
             };
             if type_args.is_empty() {
                 name
@@ -315,19 +352,6 @@ pub fn fmt_type_ref(type_ref: &CerimalTypeReference, schema: &CerimalSchema) -> 
             }
         }
     }
-}
-
-/// Format a bytes_le UUID as a standard UUID string.
-pub fn format_guid_le(bytes_le: &[u8; 16]) -> String {
-    // bytes_le: first 3 components are little-endian, last 2 are big-endian
-    let a = u32::from_le_bytes(bytes_le[0..4].try_into().unwrap());
-    let b = u16::from_le_bytes(bytes_le[4..6].try_into().unwrap());
-    let c = u16::from_le_bytes(bytes_le[6..8].try_into().unwrap());
-    let d = &bytes_le[8..16];
-    format!(
-        "{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        a, b, c, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]
-    )
 }
 
 // ---------------------------------------------------------------------------
@@ -390,15 +414,21 @@ pub fn compute_blittable_layout(
         }
         CerimalTypeReference::TypeArgument { index } => {
             let args = type_args.ok_or("TypeArgument without type_args")?;
-            let resolved = args.get(*index as usize)
+            let resolved = args
+                .get(*index as usize)
                 .ok_or_else(|| format!("TypeArgument index {} out of range", index))?;
             compute_blittable_layout(resolved, schema, type_args)
         }
         CerimalTypeReference::Array { .. } => Err("Array type is not blittable".to_string()),
-        CerimalTypeReference::Named { guid, type_args: named_type_args } => {
-            let idx = schema.guid_map.get(guid)
+        CerimalTypeReference::Named {
+            guid,
+            type_args: named_type_args,
+        } => {
+            let idx = schema
+                .guid_map
+                .get(guid)
                 .copied()
-                .ok_or_else(|| format!("Unknown GUID in blittable layout"))?;
+                .ok_or_else(|| "Unknown GUID in blittable layout".to_string())?;
             let typedef = &schema.type_defs[idx];
             let effective_args: Option<&[CerimalTypeReference]> = if !named_type_args.is_empty() {
                 Some(named_type_args)
@@ -420,7 +450,8 @@ pub fn compute_blittable_layout(
                         let mut max_align = 1usize;
                         for m in members {
                             let resolved = resolve_type_arg(&m.type_ref, effective_args);
-                            let (sz, al) = compute_blittable_layout(resolved, schema, effective_args)?;
+                            let (sz, al) =
+                                compute_blittable_layout(resolved, schema, effective_args)?;
                             offset = align_up(offset, al);
                             offset += sz;
                             max_align = max_align.max(al);
@@ -442,7 +473,7 @@ pub fn compute_unmanaged_fields<'a>(
     typedef: &'a CerimalTypeDefinition,
     schema: &CerimalSchema,
     type_args: Option<&'a [CerimalTypeReference]>,
-) -> Result<(usize, Vec<(&'a str, usize, &'a CerimalTypeReference)>), String> {
+) -> Result<(usize, Vec<UnmanagedFieldLayout<'a>>), String> {
     let members = if let TypeDefMembers::StructLike(m) = &typedef.members {
         m
     } else {
@@ -467,6 +498,8 @@ pub fn compute_unmanaged_fields<'a>(
 }
 
 pub fn align_up(offset: usize, align: usize) -> usize {
-    if align == 0 { return offset; }
+    if align == 0 {
+        return offset;
+    }
     (offset + align - 1) & !(align - 1)
 }

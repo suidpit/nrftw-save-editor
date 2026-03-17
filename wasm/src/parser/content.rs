@@ -1,8 +1,7 @@
 use super::reader::Reader;
 use super::schema::{
+    compute_blittable_layout, compute_unmanaged_fields, fmt_type_ref, needs_tag, resolve_type_arg,
     CerimalSchema, ClassMember, TypeDefMembers,
-    compute_blittable_layout, compute_unmanaged_fields,
-    fmt_type_ref, needs_tag, resolve_type_arg,
 };
 use super::types::{CerimalTypeReference, TypeDefinitionKind, WellKnownType};
 
@@ -16,24 +15,39 @@ pub enum PrimitiveValue {
     I64(i64),
     U64(u64),
     F64(f64),
-    Fp(f64),   // fixed-point, stored as f64 after divide by 65536
-    Lfp(f64),  // fixed-point i32, stored as f64 after divide by 65536
+    Fp(f64),  // fixed-point, stored as f64 after divide by 65536
+    Lfp(f64), // fixed-point i32, stored as f64 after divide by 65536
     Str(String),
     Guid([u8; 16]),
-    Bytes(Vec<u8>),   // for DECIMAL
+    Bytes(Vec<u8>), // for DECIMAL
 }
 
 impl PrimitiveValue {
     pub fn to_display_string(&self) -> String {
         match self {
-            Self::Bool(v) => if *v { "true".to_string() } else { "false".to_string() },
+            Self::Bool(v) => {
+                if *v {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                }
+            }
             Self::I64(v) => v.to_string(),
             Self::U64(v) => v.to_string(),
-            Self::F64(v) => format!("{:.6}", v).trim_end_matches('0').trim_end_matches('.').to_string(),
-            Self::Fp(v) => format!("{:.6}", v).trim_end_matches('0').trim_end_matches('.').to_string(),
-            Self::Lfp(v) => format!("{:.6}", v).trim_end_matches('0').trim_end_matches('.').to_string(),
+            Self::F64(v) => format!("{:.6}", v)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string(),
+            Self::Fp(v) => format!("{:.6}", v)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string(),
+            Self::Lfp(v) => format!("{:.6}", v)
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string(),
             Self::Str(v) => format!("{:?}", v),
-            Self::Guid(b) => super::schema::format_guid_le(b),
+            Self::Guid(b) => super::types::format_guid_le(b),
             Self::Bytes(b) => {
                 let hex: String = b.iter().map(|x| format!("{:02x}", x)).collect();
                 hex
@@ -46,7 +60,10 @@ impl PrimitiveValue {
 pub enum ContentValue {
     Primitive(PrimitiveValue),
     Composite(Vec<(String, ContentNode)>),
-    Array(Vec<ContentNode>),
+    Array {
+        dims: Vec<usize>,
+        elements: Vec<ContentNode>,
+    },
     Enum(i64),
 }
 
@@ -54,8 +71,10 @@ pub enum ContentValue {
 pub struct ConcreteNode {
     pub type_ref: CerimalTypeReference,
     pub value: ContentValue,
+    pub node_start: usize,
     pub value_start: usize,
     pub value_end: usize,
+    pub register_in_backrefs: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +111,24 @@ impl ContentNode {
             ContentNode::Polymorphic { runtime_type, .. } => runtime_type,
         }
     }
+
+    /// Parse an entire document's content section into a tree.
+    pub fn parse_document(
+        schema: &CerimalSchema,
+        content_bytes: &[u8],
+    ) -> Result<ContentNode, String> {
+        let mut r = Reader::from_slice(content_bytes);
+        let mut ctx = ParseContext::new();
+
+        // Skip backref offset table (we only need the count for list capacity)
+        let _backref_count = r.read_7bit_int()?;
+        // The backref table stores offsets; we don't need them for sequential parse
+        for _ in 0.._backref_count {
+            r.read_7bit_int()?;
+        }
+
+        parse_node(&schema.root_type_ref, schema, &mut ctx, &mut r, None)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -102,35 +139,22 @@ pub struct ParseContext {
     pub backref_list: Vec<ContentNode>,
 }
 
+impl Default for ParseContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParseContext {
     pub fn new() -> Self {
-        Self { backref_list: Vec::new() }
+        Self {
+            backref_list: Vec::new(),
+        }
     }
 
     pub fn register(&mut self, node: ContentNode) {
         self.backref_list.push(node);
     }
-}
-
-// ---------------------------------------------------------------------------
-// Main content parsing entry point
-// ---------------------------------------------------------------------------
-
-pub fn parse_document_content(
-    schema: &CerimalSchema,
-    content_bytes: &[u8],
-) -> Result<ContentNode, String> {
-    let mut r = Reader::from_slice(content_bytes);
-    let mut ctx = ParseContext::new();
-
-    // Skip backref offset table (we only need the count for list capacity)
-    let _backref_count = r.read_7bit_int()?;
-    // The backref table stores offsets; we don't need them for sequential parse
-    for _ in 0.._backref_count {
-        r.read_7bit_int()?;
-    }
-
-    parse_node(&schema.root_type_ref, schema, &mut ctx, &mut r, None)
 }
 
 // ---------------------------------------------------------------------------
@@ -141,25 +165,29 @@ fn parse_node(
     type_ref: &CerimalTypeReference,
     schema: &CerimalSchema,
     ctx: &mut ParseContext,
-    r: &mut Reader,
+    r: &mut Reader<'_>,
     type_args: Option<&[CerimalTypeReference]>,
 ) -> Result<ContentNode, String> {
     let resolved = resolve_type_arg(type_ref, type_args);
 
     if !needs_tag(resolved, schema) {
         // Value types have no tag — parse value directly
+        let node_start = r.pos;
         let val_start = r.pos;
         let value = parse_value(resolved, schema, ctx, r, 0, type_args)?;
         let val_end = r.pos;
         return Ok(ContentNode::Concrete(Box::new(ConcreteNode {
             type_ref: resolved.clone(),
             value,
+            node_start,
             value_start: val_start,
             value_end: val_end,
+            register_in_backrefs: false,
         })));
     }
 
     // Reference type: read tag
+    let node_start = r.pos;
     let tag = r.read_7bit_int()?;
     let kind = tag & 0x3;
 
@@ -168,7 +196,10 @@ fn parse_node(
         1 => {
             // Backref: bits[31:2] = index
             let index = tag >> 2;
-            Ok(ContentNode::Backref { type_ref: resolved.clone(), index })
+            Ok(ContentNode::Backref {
+                type_ref: resolved.clone(),
+                index,
+            })
         }
         2 => {
             // Concrete with optional register bit
@@ -180,8 +211,10 @@ fn parse_node(
             let node = ContentNode::Concrete(Box::new(ConcreteNode {
                 type_ref: resolved.clone(),
                 value,
+                node_start,
                 value_start: val_start,
                 value_end: val_end,
+                register_in_backrefs: register_bit != 0,
             }));
             if register_bit != 0 {
                 ctx.register(node.clone());
@@ -202,7 +235,7 @@ fn parse_node(
     }
 }
 
-fn parse_type_reference_from_reader(r: &mut Reader) -> Result<CerimalTypeReference, String> {
+fn parse_type_reference_from_reader(r: &mut Reader<'_>) -> Result<CerimalTypeReference, String> {
     super::schema::parse_type_reference(r)
 }
 
@@ -214,14 +247,16 @@ fn parse_value(
     type_ref: &CerimalTypeReference,
     schema: &CerimalSchema,
     ctx: &mut ParseContext,
-    r: &mut Reader,
+    r: &mut Reader<'_>,
     tag_payload: u32,
     type_args: Option<&[CerimalTypeReference]>,
 ) -> Result<ContentValue, String> {
     match type_ref {
-        CerimalTypeReference::Primitive(wkt) => {
-            Ok(ContentValue::Primitive(parse_primitive(*wkt, r, tag_payload)?))
-        }
+        CerimalTypeReference::Primitive(wkt) => Ok(ContentValue::Primitive(parse_primitive(
+            *wkt,
+            r,
+            tag_payload,
+        )?)),
         CerimalTypeReference::Array { rank, element } => {
             // tag_payload = first dimension; extra dims follow as 7-bit ints
             let mut dims = vec![tag_payload as usize];
@@ -233,17 +268,26 @@ fn parse_value(
             for _ in 0..total {
                 elements.push(parse_node(element, schema, ctx, r, type_args)?);
             }
-            Ok(ContentValue::Array(elements))
+            Ok(ContentValue::Array { dims, elements })
         }
         CerimalTypeReference::TypeArgument { index } => {
             let args = type_args.ok_or("TypeArgument without type_args")?;
-            let resolved = args.get(*index as usize)
+            let resolved = args
+                .get(*index as usize)
                 .ok_or_else(|| format!("TypeArgument index {} out of range", index))?;
             parse_value(resolved, schema, ctx, r, tag_payload, type_args)
         }
-        CerimalTypeReference::Named { guid, type_args: type_refs } => {
-            let idx = schema.guid_map.get(guid).copied()
-                .ok_or_else(|| format!("Unknown type GUID: {} (schema has {} types)", super::schema::format_guid_le(guid), schema.type_defs.len()))?;
+        CerimalTypeReference::Named {
+            guid,
+            type_args: type_refs,
+        } => {
+            let idx = schema.guid_map.get(guid).copied().ok_or_else(|| {
+                format!(
+                    "Unknown type GUID: {} (schema has {} types)",
+                    super::types::format_guid_le(guid),
+                    schema.type_defs.len()
+                )
+            })?;
             let typedef = &schema.type_defs[idx];
 
             let effective_args: Option<&[CerimalTypeReference]> = if !type_refs.is_empty() {
@@ -257,30 +301,39 @@ fn parse_value(
                     let v = r.unpack_enum_type(&em.underlying_type)?;
                     Ok(ContentValue::Enum(v))
                 }
-                TypeDefMembers::StructLike(_) if typedef.kind == TypeDefinitionKind::Unmanaged
-                    || typedef.kind == TypeDefinitionKind::Struct =>
+                TypeDefMembers::StructLike(_)
+                    if typedef.kind == TypeDefinitionKind::Unmanaged
+                        || typedef.kind == TypeDefinitionKind::Struct =>
                 {
                     // Try blittable path first
                     match compute_unmanaged_fields(typedef, schema, effective_args) {
                         Ok((blob_size, unmanaged_fields)) => {
                             // Read full blob, create field nodes with precise byte offsets
                             let blob_start = r.pos;
-                            let blob = r.read_bytes(blob_size)?;
+                            let blob = r.read_slice(blob_size)?;
                             let mut fields = Vec::new();
                             for (fname, field_offset, field_type_ref) in unmanaged_fields {
                                 let (field_size, _) = compute_blittable_layout(
-                                    field_type_ref, schema, effective_args
+                                    field_type_ref,
+                                    schema,
+                                    effective_args,
                                 )?;
                                 let mut field_reader = Reader::from_slice(&blob[field_offset..]);
                                 let prim_val = parse_value(
-                                    field_type_ref, schema, ctx,
-                                    &mut field_reader, 0, effective_args
+                                    field_type_ref,
+                                    schema,
+                                    ctx,
+                                    &mut field_reader,
+                                    0,
+                                    effective_args,
                                 )?;
                                 let node = ContentNode::Concrete(Box::new(ConcreteNode {
                                     type_ref: field_type_ref.clone(),
                                     value: prim_val,
+                                    node_start: blob_start + field_offset,
                                     value_start: blob_start + field_offset,
                                     value_end: blob_start + field_offset + field_size,
+                                    register_in_backrefs: false,
                                 }));
                                 fields.push((fname.to_string(), node));
                             }
@@ -289,7 +342,14 @@ fn parse_value(
                         Err(_) => {
                             // Non-blittable: parse field-by-field
                             let mut fields = Vec::new();
-                            read_record_fields_into(typedef, schema, ctx, r, effective_args, &mut fields)?;
+                            read_record_fields_into(
+                                typedef,
+                                schema,
+                                ctx,
+                                r,
+                                effective_args,
+                                &mut fields,
+                            )?;
                             Ok(ContentValue::Composite(fields))
                         }
                     }
@@ -306,68 +366,35 @@ fn parse_value(
 
 fn parse_primitive(
     wkt: WellKnownType,
-    r: &mut Reader,
+    r: &mut Reader<'_>,
     tag_payload: u32,
 ) -> Result<PrimitiveValue, String> {
     match wkt {
         WellKnownType::String => {
             let len = tag_payload as usize;
-            let bytes = r.read_bytes(len)?;
-            Ok(PrimitiveValue::Str(String::from_utf8(bytes).unwrap_or_default()))
+            let bytes = r.read_slice(len)?;
+            Ok(PrimitiveValue::Str(
+                String::from_utf8_lossy(bytes).into_owned(),
+            ))
         }
-        WellKnownType::Guid => {
-            let b = r.read_bytes(16)?;
-            Ok(PrimitiveValue::Guid(b.try_into().unwrap()))
-        }
-        WellKnownType::Decimal => {
-            Ok(PrimitiveValue::Bytes(r.read_bytes(16)?))
-        }
-        WellKnownType::Fp => {
-            let raw = i64::from_le_bytes(r.read_bytes(8)?.try_into().unwrap());
-            Ok(PrimitiveValue::Fp(raw as f64 / 65536.0))
-        }
-        WellKnownType::Lfp => {
-            let raw = i32::from_le_bytes(r.read_bytes(4)?.try_into().unwrap());
-            Ok(PrimitiveValue::Lfp(raw as f64 / 65536.0))
-        }
+        WellKnownType::Guid => Ok(PrimitiveValue::Guid(r.read_array()?)),
+        WellKnownType::Decimal => Ok(PrimitiveValue::Bytes(r.read_bytes(16)?)),
+        WellKnownType::Fp => Ok(PrimitiveValue::Fp(r.i64_le()? as f64 / 65536.0)),
+        WellKnownType::Lfp => Ok(PrimitiveValue::Lfp(r.i32_le()? as f64 / 65536.0)),
         WellKnownType::Bool => Ok(PrimitiveValue::Bool(r.u8()? != 0)),
         WellKnownType::SByte => Ok(PrimitiveValue::I64(r.u8()? as i8 as i64)),
         WellKnownType::Byte => Ok(PrimitiveValue::U64(r.u8()? as u64)),
-        WellKnownType::Short => {
-            let v = i16::from_le_bytes(r.read_bytes(2)?.try_into().unwrap());
-            Ok(PrimitiveValue::I64(v as i64))
-        }
-        WellKnownType::UShort | WellKnownType::Char => {
-            let v = u16::from_le_bytes(r.read_bytes(2)?.try_into().unwrap());
-            Ok(PrimitiveValue::U64(v as u64))
-        }
-        WellKnownType::Int => {
-            let v = i32::from_le_bytes(r.read_bytes(4)?.try_into().unwrap());
-            Ok(PrimitiveValue::I64(v as i64))
-        }
-        WellKnownType::UInt => {
-            let v = u32::from_le_bytes(r.read_bytes(4)?.try_into().unwrap());
-            Ok(PrimitiveValue::U64(v as u64))
-        }
-        WellKnownType::Long | WellKnownType::NInt => {
-            let v = i64::from_le_bytes(r.read_bytes(8)?.try_into().unwrap());
-            Ok(PrimitiveValue::I64(v))
-        }
+        WellKnownType::Short => Ok(PrimitiveValue::I64(r.i16_le()? as i64)),
+        WellKnownType::UShort | WellKnownType::Char => Ok(PrimitiveValue::U64(r.u16_le()? as u64)),
+        WellKnownType::Int => Ok(PrimitiveValue::I64(r.i32_le()? as i64)),
+        WellKnownType::UInt => Ok(PrimitiveValue::U64(r.u32_le()? as u64)),
+        WellKnownType::Long | WellKnownType::NInt => Ok(PrimitiveValue::I64(r.i64_le()?)),
         WellKnownType::ULong | WellKnownType::NUInt | WellKnownType::AssetGuid => {
-            let v = u64::from_le_bytes(r.read_bytes(8)?.try_into().unwrap());
-            Ok(PrimitiveValue::U64(v))
+            Ok(PrimitiveValue::U64(r.u64_le()?))
         }
-        WellKnownType::Float => {
-            let v = f32::from_le_bytes(r.read_bytes(4)?.try_into().unwrap());
-            Ok(PrimitiveValue::F64(v as f64))
-        }
-        WellKnownType::Double => {
-            let v = f64::from_le_bytes(r.read_bytes(8)?.try_into().unwrap());
-            Ok(PrimitiveValue::F64(v))
-        }
-        WellKnownType::Unknown(_) => {
-            Err(format!("Cannot parse unknown WellKnownType"))
-        }
+        WellKnownType::Float => Ok(PrimitiveValue::F64(r.f32_le()? as f64)),
+        WellKnownType::Double => Ok(PrimitiveValue::F64(r.f64_le()?)),
+        WellKnownType::Unknown(_) => Err("Cannot parse unknown WellKnownType".to_string()),
     }
 }
 
@@ -379,7 +406,7 @@ fn read_record_fields_into(
     typedef: &super::schema::CerimalTypeDefinition,
     schema: &CerimalSchema,
     ctx: &mut ParseContext,
-    r: &mut Reader,
+    r: &mut Reader<'_>,
     type_args: Option<&[CerimalTypeReference]>,
     fields: &mut Vec<(String, ContentNode)>,
 ) -> Result<(), String> {
@@ -389,22 +416,32 @@ fn read_record_fields_into(
             if base_info.has_base {
                 if let Some(base_ref) = &base_info.base_type_ref {
                     let resolved_base = resolve_type_arg(base_ref, type_args);
-                    if let CerimalTypeReference::Named { guid, type_args: type_refs } = resolved_base {
+                    if let CerimalTypeReference::Named {
+                        guid,
+                        type_args: type_refs,
+                    } = resolved_base
+                    {
                         if let Some(&base_idx) = schema.guid_map.get(guid) {
                             // Resolve each type arg in the base reference against the parent's type_args
                             // (mirrors Python: base_args = [resolve_type_arg(a, type_args) for a in base_ref.type_refs])
                             let resolved_base_args: Vec<CerimalTypeReference>;
-                            let base_args: Option<&[CerimalTypeReference]> = if !type_refs.is_empty() {
-                                resolved_base_args = type_refs.iter()
-                                    .map(|a| resolve_type_arg(a, type_args).clone())
-                                    .collect();
-                                Some(&resolved_base_args)
-                            } else {
-                                type_args
-                            };
+                            let base_args: Option<&[CerimalTypeReference]> =
+                                if !type_refs.is_empty() {
+                                    resolved_base_args = type_refs
+                                        .iter()
+                                        .map(|a| resolve_type_arg(a, type_args).clone())
+                                        .collect();
+                                    Some(&resolved_base_args)
+                                } else {
+                                    type_args
+                                };
                             read_record_fields_into(
                                 &schema.type_defs[base_idx],
-                                schema, ctx, r, base_args, fields
+                                schema,
+                                ctx,
+                                r,
+                                base_args,
+                                fields,
                             )?;
                         }
                     }
@@ -415,7 +452,7 @@ fn read_record_fields_into(
 
     match &typedef.members {
         TypeDefMembers::Class(members) => {
-            for member in members {
+            for (member_idx, member) in members.iter().enumerate() {
                 match member {
                     ClassMember::Field { name, type_ref } => {
                         let node = parse_node(type_ref, schema, ctx, r, type_args)?;
@@ -432,13 +469,21 @@ fn read_record_fields_into(
                                 rank: 1,
                                 element: Box::new(element_type.clone()),
                             },
-                            value: ContentValue::Array(elems),
+                            value: ContentValue::Array {
+                                dims: vec![count],
+                                elements: elems,
+                            },
+                            node_start: 0,
                             value_start: 0,
                             value_end: 0,
+                            register_in_backrefs: false,
                         }));
-                        fields.push(("$list".to_string(), node));
+                        fields.push((format!("$list{}", member_idx), node));
                     }
-                    ClassMember::Dict { key_type, value_type } => {
+                    ClassMember::Dict {
+                        key_type,
+                        value_type,
+                    } => {
                         let count = r.read_7bit_int()? as usize;
                         let mut pairs = Vec::with_capacity(count.min(10_000) * 2);
                         for i in 0..count {
@@ -450,10 +495,12 @@ fn read_record_fields_into(
                         let node = ContentNode::Concrete(Box::new(ConcreteNode {
                             type_ref: CerimalTypeReference::TypeArgument { index: 0 }, // placeholder
                             value: ContentValue::Composite(pairs),
+                            node_start: 0,
                             value_start: 0,
                             value_end: 0,
+                            register_in_backrefs: false,
                         }));
-                        fields.push(("$dict".to_string(), node));
+                        fields.push((format!("$dict{}", member_idx), node));
                     }
                 }
             }
@@ -481,7 +528,7 @@ pub struct NodeMeta {
     pub is_leaf: bool,
     pub value: Option<String>,
     pub child_count: usize,
-    pub guid: Option<String>,  // set for ASSETGUID nodes
+    pub guid: Option<String>, // set for ASSETGUID nodes
 }
 
 pub fn node_meta(node: &ContentNode, schema: &CerimalSchema) -> NodeMeta {
@@ -503,42 +550,52 @@ pub fn node_meta(node: &ContentNode, schema: &CerimalSchema) -> NodeMeta {
             child_count: 0,
             guid: None,
         },
-        ContentNode::Concrete(n) => {
-            match &n.value {
-                ContentValue::Primitive(pv) => {
-                    let is_asset_guid = matches!(&n.type_ref,
-                        CerimalTypeReference::Primitive(WellKnownType::AssetGuid));
-                    let val_str = pv.to_display_string();
-                    let guid = if is_asset_guid {
-                        if let PrimitiveValue::U64(v) = pv {
-                            Some(v.to_string())
-                        } else { None }
-                    } else { None };
-                    NodeMeta { type_str, is_leaf: true, value: Some(val_str), child_count: 0, guid }
-                }
-                ContentValue::Composite(fields) => NodeMeta {
-                    type_str,
-                    is_leaf: false,
-                    value: None,
-                    child_count: fields.len(),
-                    guid: None,
-                },
-                ContentValue::Array(elems) => NodeMeta {
-                    type_str,
-                    is_leaf: false,
-                    value: None,
-                    child_count: elems.len(),
-                    guid: None,
-                },
-                ContentValue::Enum(v) => NodeMeta {
+        ContentNode::Concrete(n) => match &n.value {
+            ContentValue::Primitive(pv) => {
+                let is_asset_guid = matches!(
+                    &n.type_ref,
+                    CerimalTypeReference::Primitive(WellKnownType::AssetGuid)
+                );
+                let val_str = pv.to_display_string();
+                let guid = if is_asset_guid {
+                    if let PrimitiveValue::U64(v) = pv {
+                        Some(v.to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                NodeMeta {
                     type_str,
                     is_leaf: true,
-                    value: Some(v.to_string()),
+                    value: Some(val_str),
                     child_count: 0,
-                    guid: None,
-                },
+                    guid,
+                }
             }
-        }
+            ContentValue::Composite(fields) => NodeMeta {
+                type_str,
+                is_leaf: false,
+                value: None,
+                child_count: fields.len(),
+                guid: None,
+            },
+            ContentValue::Array { elements, .. } => NodeMeta {
+                type_str,
+                is_leaf: false,
+                value: None,
+                child_count: elements.len(),
+                guid: None,
+            },
+            ContentValue::Enum(v) => NodeMeta {
+                type_str,
+                is_leaf: true,
+                value: Some(v.to_string()),
+                child_count: 0,
+                guid: None,
+            },
+        },
         ContentNode::Polymorphic { .. } => unreachable!("unwrap_poly should eliminate this"),
     }
 }
@@ -553,14 +610,19 @@ pub struct ChildEntry {
     pub meta: NodeMeta,
 }
 
-pub fn children_of(node: &ContentNode, path_prefix: &str, schema: &CerimalSchema) -> Vec<ChildEntry> {
+pub fn children_of(
+    node: &ContentNode,
+    path_prefix: &str,
+    schema: &CerimalSchema,
+) -> Vec<ChildEntry> {
     let actual = node.unwrap_poly();
 
     match actual {
         ContentNode::Concrete(n) => {
             match &n.value {
-                ContentValue::Composite(fields) => {
-                    fields.iter().map(|(fname, child)| {
+                ContentValue::Composite(fields) => fields
+                    .iter()
+                    .map(|(fname, child)| {
                         let child_path = if path_prefix.is_empty() {
                             fname.clone()
                         } else {
@@ -571,21 +633,27 @@ pub fn children_of(node: &ContentNode, path_prefix: &str, schema: &CerimalSchema
                             path: child_path,
                             meta: node_meta(child, schema),
                         }
-                    }).collect()
-                }
-                ContentValue::Array(elems) => {
-                    let limit = elems.len().min(200);
-                    let mut out: Vec<ChildEntry> = elems[..limit].iter().enumerate().map(|(i, elem)| {
-                        let child_path = format!("{}[{}]", path_prefix, i);
-                        ChildEntry {
-                            key: i.to_string(),
-                            path: child_path,
-                            meta: node_meta(elem, schema),
-                        }
-                    }).collect();
-                    if elems.len() > limit {
+                    })
+                    .collect(),
+                ContentValue::Array { elements, .. } => {
+                    // Cap child listing for the tree UI to avoid overwhelming the browser
+                    const MAX_CHILDREN_DISPLAYED: usize = 200;
+                    let limit = elements.len().min(MAX_CHILDREN_DISPLAYED);
+                    let mut out: Vec<ChildEntry> = elements[..limit]
+                        .iter()
+                        .enumerate()
+                        .map(|(i, elem)| {
+                            let child_path = format!("{}[{}]", path_prefix, i);
+                            ChildEntry {
+                                key: i.to_string(),
+                                path: child_path,
+                                meta: node_meta(elem, schema),
+                            }
+                        })
+                        .collect();
+                    if elements.len() > limit {
                         out.push(ChildEntry {
-                            key: format!("…{} more", elems.len() - limit),
+                            key: format!("…{} more", elements.len() - limit),
                             path: String::new(),
                             meta: NodeMeta {
                                 type_str: String::new(),
@@ -642,14 +710,21 @@ pub fn find_node<'a>(node: &'a ContentNode, path: &str) -> Option<&'a ContentNod
         ContentNode::Concrete(n) => {
             match &n.value {
                 ContentValue::Composite(fields) => {
-                    let child = fields.iter().find(|(k, _)| k == field_name).map(|(_, v)| v)?;
+                    let child = fields
+                        .iter()
+                        .find(|(k, _)| k == field_name)
+                        .map(|(_, v)| v)?;
                     let child = if let Some(i) = idx {
                         // Drill into array element
                         if let ContentNode::Concrete(cn) = child.unwrap_poly() {
-                            if let ContentValue::Array(elems) = &cn.value {
-                                elems.get(i)?
-                            } else { return None; }
-                        } else { return None; }
+                            if let ContentValue::Array { elements, .. } = &cn.value {
+                                elements.get(i)?
+                            } else {
+                                return None;
+                            }
+                        } else {
+                            return None;
+                        }
                     } else {
                         child
                     };
@@ -658,11 +733,13 @@ pub fn find_node<'a>(node: &'a ContentNode, path: &str) -> Option<&'a ContentNod
                         None => Some(child),
                     }
                 }
-                ContentValue::Array(elems) => {
+                ContentValue::Array { elements, .. } => {
                     // path is like "[N]" or "N"
-                    let i = field_name.trim_matches(|c| c == '[' || c == ']')
-                        .parse::<usize>().ok()?;
-                    let elem = elems.get(i)?;
+                    let i = field_name
+                        .trim_matches(|c| c == '[' || c == ']')
+                        .parse::<usize>()
+                        .ok()?;
+                    let elem = elements.get(i)?;
                     match rest_opt {
                         Some(rest) => find_node(elem, rest),
                         None => Some(elem),
@@ -691,10 +768,7 @@ fn parse_head(head: &str) -> (&str, Option<usize>) {
 // Primitive encoding (for patch_field)
 // ---------------------------------------------------------------------------
 
-pub fn encode_primitive(
-    node: &ConcreteNode,
-    value_str: &str,
-) -> Result<(usize, Vec<u8>), String> {
+pub fn encode_primitive(node: &ConcreteNode, value_str: &str) -> Result<(usize, Vec<u8>), String> {
     match &node.type_ref {
         CerimalTypeReference::Primitive(wkt) => {
             let bytes = encode_primitive_wkt(*wkt, value_str)?;
@@ -707,12 +781,16 @@ pub fn encode_primitive(
 fn encode_primitive_wkt(wkt: WellKnownType, value_str: &str) -> Result<Vec<u8>, String> {
     match wkt {
         WellKnownType::Fp => {
-            let v: f64 = value_str.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
+            let v: f64 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseFloatError| e.to_string())?;
             let raw = (v * 65536.0).round() as i64;
             Ok(raw.to_le_bytes().to_vec())
         }
         WellKnownType::Lfp => {
-            let v: f64 = value_str.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
+            let v: f64 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseFloatError| e.to_string())?;
             let raw = (v * 65536.0).round() as i32;
             Ok(raw.to_le_bytes().to_vec())
         }
@@ -720,24 +798,35 @@ fn encode_primitive_wkt(wkt: WellKnownType, value_str: &str) -> Result<Vec<u8>, 
             let v: bool = match value_str.trim() {
                 "true" | "1" => true,
                 "false" | "0" => false,
-                _ => value_str.parse::<i64>().map(|v| v != 0).map_err(|_| format!("Invalid bool: {}", value_str))?,
+                _ => value_str
+                    .parse::<i64>()
+                    .map(|v| v != 0)
+                    .map_err(|_| format!("Invalid bool: {}", value_str))?,
             };
             Ok(vec![v as u8])
         }
         WellKnownType::SByte => {
-            let v: i8 = value_str.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+            let v: i8 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseIntError| e.to_string())?;
             Ok(vec![v as u8])
         }
         WellKnownType::Byte => {
-            let v: u8 = value_str.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+            let v: u8 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseIntError| e.to_string())?;
             Ok(vec![v])
         }
         WellKnownType::Short => {
-            let v: i16 = value_str.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+            let v: i16 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseIntError| e.to_string())?;
             Ok(v.to_le_bytes().to_vec())
         }
         WellKnownType::UShort | WellKnownType::Char => {
-            let v: u16 = value_str.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+            let v: u16 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseIntError| e.to_string())?;
             Ok(v.to_le_bytes().to_vec())
         }
         WellKnownType::Int => {
@@ -753,19 +842,27 @@ fn encode_primitive_wkt(wkt: WellKnownType, value_str: &str) -> Result<Vec<u8>, 
             Ok(v.to_le_bytes().to_vec())
         }
         WellKnownType::ULong | WellKnownType::NUInt => {
-            let v: u64 = value_str.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+            let v: u64 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseIntError| e.to_string())?;
             Ok(v.to_le_bytes().to_vec())
         }
         WellKnownType::Float => {
-            let v: f32 = value_str.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
+            let v: f32 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseFloatError| e.to_string())?;
             Ok(v.to_le_bytes().to_vec())
         }
         WellKnownType::Double => {
-            let v: f64 = value_str.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
+            let v: f64 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseFloatError| e.to_string())?;
             Ok(v.to_le_bytes().to_vec())
         }
         WellKnownType::AssetGuid => {
-            let v: u64 = value_str.parse().map_err(|e: std::num::ParseIntError| e.to_string())?;
+            let v: u64 = value_str
+                .parse()
+                .map_err(|e: std::num::ParseIntError| e.to_string())?;
             Ok(v.to_le_bytes().to_vec())
         }
         _ => Err(format!("Cannot encode primitive type: {}", wkt.name())),
@@ -774,7 +871,9 @@ fn encode_primitive_wkt(wkt: WellKnownType, value_str: &str) -> Result<Vec<u8>, 
 
 fn parse_int_or_float(s: &str) -> Result<i64, String> {
     if s.contains('.') {
-        let f: f64 = s.parse().map_err(|e: std::num::ParseFloatError| e.to_string())?;
+        let f: f64 = s
+            .parse()
+            .map_err(|e: std::num::ParseFloatError| e.to_string())?;
         Ok(f.round() as i64)
     } else {
         s.parse::<i64>().map_err(|e| e.to_string())
