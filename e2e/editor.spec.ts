@@ -319,11 +319,12 @@ test.describe("Editor Tab", () => {
         await expect(page.locator("#item-quality")).toBeDisabled();
         await expect(page.locator("#item-durability")).toHaveValue("100");
         await expect(page.locator("#item-durability")).toBeDisabled();
-        await expect(page.locator(".enchant-row")).toHaveCount(1);
+        await expect(page.locator(".enchant-row")).toHaveCount(2);
         await expect(page.locator(".enchant-row")).toContainText([
             "Spend Health Instead Focus",
+            "Lifesteal Disabled",
         ]);
-        await expect(page.locator(".enchant-row")).toContainText("Spend Health instead of Focus");
+        await expect(page.locator(".enchant-row").filter({ hasText: "Spend Health Instead Focus" })).toContainText("Spend Health instead of Focus");
         await expect(page.locator('button:has-text("+ Add Enchantment")')).toBeDisabled();
         await expect(page.locator('button[aria-label="Move enchantment up"]')).toHaveCount(0);
         await expect(page.locator('button[aria-label="Remove enchantment"]')).toHaveCount(0);
@@ -349,7 +350,7 @@ test.describe("Editor Tab", () => {
 
         await expect(page.locator("#item-quality")).toHaveValue("3");
         await expect(page.locator("#item-quality")).toBeDisabled();
-        await expect(page.locator(".enchant-row")).toHaveCount(1);
+        await expect(page.locator(".enchant-row")).toHaveCount(2);
         await expect(page.locator('button:has-text("+ Add Enchantment")')).toBeDisabled();
         await expect(page.locator('button[aria-label="Move enchantment up"]')).toHaveCount(0);
         await expect(page.locator('button[aria-label="Remove enchantment"]')).toHaveCount(0);

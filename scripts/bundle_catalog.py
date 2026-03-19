@@ -31,8 +31,9 @@ BUNDLE_DIR = (
     / "resources/game_dir/NoRestForTheWicked_Data/StreamingAssets/aa/StandaloneWindows64"
 )
 DEFAULT_BUNDLE = "qdb_assets_all_e4d83d504b7b9074accd1297011f22ec.bundle"
-MONOSCRIPTS_BUNDLE = "96f91f0ffa73a2e48b992373b0be129e_monoscripts_48ec820bfc8e835fc2a09db0b8cb63f7.bundle"
-WORLD_ASSETS_BUNDLE = "world_assets_all_afa19d7710b311abc0c1e70f5c9a9344.bundle"
+# These are glob prefixes — the hash suffix changes with each game update
+MONOSCRIPTS_BUNDLE_GLOB = "96f91f0ffa73a2e48b992373b0be129e_monoscripts_*.bundle"
+WORLD_ASSETS_BUNDLE_GLOB = "world_assets_all_*.bundle"
 DEFAULT_DB = Path(__file__).parent.parent / "public" / "catalog.db"
 
 
@@ -74,11 +75,14 @@ def serialize(obj, depth: int = 0) -> object:
 def build_catalog(bundle_path: Path, db_path: Path) -> None:
     print(f"Loading bundle: {bundle_path.name} …", flush=True)
     extra_bundles = []
-    for fname in (MONOSCRIPTS_BUNDLE, WORLD_ASSETS_BUNDLE):
-        p = bundle_path.parent / fname
-        if p.exists():
+    for glob_pat in (MONOSCRIPTS_BUNDLE_GLOB, WORLD_ASSETS_BUNDLE_GLOB):
+        matches = sorted(bundle_path.parent.glob(glob_pat))
+        # Skip the primary bundle itself if it matches (e.g. world_assets_all_*.bundle)
+        matches = [p for p in matches if p != bundle_path]
+        if matches:
+            p = matches[0]
             extra_bundles.append(str(p))
-            print(f"Also loading: {fname} …", flush=True)
+            print(f"Also loading: {p.name} …", flush=True)
     env = Environment(str(bundle_path), *extra_bundles)
     bundle_name = bundle_path.name
 
