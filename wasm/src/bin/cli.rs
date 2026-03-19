@@ -363,6 +363,8 @@ fn mutate_brothers_keepers_level(
                 stack_count: 1,
                 rune_guids: vec![],
                 enchantment_guids: vec![],
+                enchantment_qualities: vec![],
+                enchantment_exalt_stacks: vec![],
             }],
             item_creates: vec![],
         },

@@ -34,7 +34,7 @@ pub struct StatEdit {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct ItemDraft {
     pub doc_idx: usize,
     pub item_path: Option<String>,
@@ -45,6 +45,10 @@ pub struct ItemDraft {
     pub stack_count: i64,
     pub rune_guids: Vec<String>,
     pub enchantment_guids: Vec<String>,
+    #[serde(default)]
+    pub enchantment_qualities: Vec<String>,
+    #[serde(default)]
+    pub enchantment_exalt_stacks: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -388,7 +392,7 @@ fn apply_item_draft_to_entry(
     let has_existing_enchantments = current_enchantment_count(item) > 0;
     if force_unequipped_slot || !draft.enchantment_guids.is_empty() || has_existing_enchantments {
         let enchantment = ensure_named_field(item, "Enchantment", schema)?;
-        apply_enchantments(enchantment, schema, &draft.enchantment_guids)?;
+        apply_enchantments(enchantment, schema, draft)?;
     }
 
     Ok(())
@@ -411,8 +415,9 @@ fn normalize_rarity_for_enchantments(rarity: i64, enchantment_count: usize) -> i
 fn apply_enchantments(
     enchantment: &mut ContentNode,
     schema: &CerimalSchema,
-    guids: &[String],
+    draft: &ItemDraft,
 ) -> Result<(), String> {
+    let guids = &draft.enchantment_guids;
     {
         let has_value = ensure_named_field(enchantment, "HasValue", schema)?;
         set_bool(has_value, !guids.is_empty())?;
@@ -425,9 +430,28 @@ fn apply_enchantments(
     let (dims, elements) = ensure_enchantment_list(enchantment, schema)?;
     elements.clear();
 
-    for guid in guids {
+    for (i, guid) in guids.iter().enumerate() {
         let mut entry = build_default_node(array_element_type(&list_type)?, schema, None)?;
         set_enchantment_guid(&mut entry, guid)?;
+
+        // Set Quality (u64 as decimal string)
+        if let Some(quality_str) = draft.enchantment_qualities.get(i) {
+            if let Ok(quality_val) = parse_u64(quality_str) {
+                let fields = composite_fields_mut(&mut entry)?;
+                if let Ok(quality_field) = find_field_mut(fields, "Quality") {
+                    let _ = set_leaf_u64(quality_field, quality_val);
+                }
+            }
+        }
+
+        // Set ExaltStacks (i64)
+        if let Some(&exalt) = draft.enchantment_exalt_stacks.get(i) {
+            let fields = composite_fields_mut(&mut entry)?;
+            if let Ok(exalt_field) = find_field_mut(fields, "ExaltStacks") {
+                let _ = set_leaf_numeric(exalt_field, exalt);
+            }
+        }
+
         elements.push(entry);
     }
     sync_array_dims(dims, elements.len());

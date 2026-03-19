@@ -2,6 +2,8 @@
     import { tick } from "svelte";
     import { catalogLoaded, getAssetByGuid, getModifierDetailByGuid } from "./catalog";
     import { isEquipmentAssetType, isStackableAssetType, RARITY_NAMES, RARITY_LABELS, RARITY_COLORS } from "./inventory-assets";
+    import { computeRolledValue, formatRollText } from "./quality";
+    import type { EnchantmentEntry } from "./types";
     import {
         deleteItemChange,
         getInventorySnapshot,
@@ -118,8 +120,12 @@
             stackCount: snapshot.stackCount,
             runeGuids: [...snapshot.runeGuids],
             runeNames: snapshot.runeGuids.map(runeName),
-            enchantmentGuids: [...snapshot.enchantmentGuids],
-            enchantmentNames: snapshot.enchantmentGuids.map(enchantmentName),
+            enchantments: snapshot.enchantmentGuids.map((guid, i) => ({
+                guid,
+                name: enchantmentName(guid),
+                quality: snapshot.enchantmentQualities[i] ?? "0",
+                exaltStacks: snapshot.enchantmentExaltStacks[i] ?? 0,
+            })),
             traitGuid: snapshot.traitGuid,
             traitName: traitName(snapshot.traitGuid),
             isNew: false,
@@ -246,8 +252,7 @@
             stackCount: item.stackCount,
             runeGuids: [...item.runeGuids],
             runeNames: [...item.runeNames],
-            enchantmentGuids: [...item.enchantmentGuids],
-            enchantmentNames: [...item.enchantmentNames],
+            enchantments: item.enchantments.map(e => ({ ...e })),
             traitGuid: item.traitGuid,
             traitName: item.traitName,
             isNew: item.isNew,
@@ -272,8 +277,7 @@
             stackCount: 1,
             runeGuids: [],
             runeNames: [],
-            enchantmentGuids: [],
-            enchantmentNames: [],
+            enchantments: [],
             traitGuid: "",
             traitName: "",
             isNew: true,
@@ -289,6 +293,21 @@
             enchantment?.name ||
             (guid ? guid.slice(0, 6) + "…" : "Unknown")
         );
+    }
+
+    function enchantmentDisplayText(entry: EnchantmentEntry): string {
+        const detail = getModifierDetailByGuid(entry.guid);
+        if (!detail) return entry.name;
+        const result = computeRolledValue(
+            entry.quality,
+            detail.rollKind,
+            detail.rollMin,
+            detail.rollMax,
+            detail.rollValue,
+            detail.rollUnit,
+            detail.rollIsNegative,
+        );
+        return formatRollText(detail.rollText, result) ?? detail.effectText ?? entry.name;
     }
 
     function runeName(guid: string): string {
@@ -424,10 +443,22 @@
                 {/each}
             </div>
         {/if}
-        {#if equipmentItem && item.enchantmentNames.length > 0}
+        {#if equipmentItem && item.enchantments.length > 0}
+            {@const totalExalt = item.enchantments.reduce((s, e) => s + e.exaltStacks, 0)}
             <div class="tooltip-enchants">
-                {#each item.enchantmentNames as name}
-                    <div class="tooltip-enchant">{name}</div>
+                {#if totalExalt > 0}
+                    <div class="tooltip-enchant-header">
+                        Enchantments {item.enchantments.length}
+                        <span class="tooltip-exalt-stars">{"★".repeat(totalExalt)}</span>
+                    </div>
+                {/if}
+                {#each item.enchantments as entry}
+                    <div class="tooltip-enchant">
+                        {enchantmentDisplayText(entry)}
+                        {#if entry.exaltStacks > 0}
+                            <span class="tooltip-exalt-stars">{"★".repeat(entry.exaltStacks)}</span>
+                        {/if}
+                    </div>
                 {/each}
             </div>
         {/if}
@@ -587,6 +618,19 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+    }
+
+    .tooltip-enchant-header {
+        font-size: 0.72em;
+        color: var(--accent-gold, #c8a050);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 2px;
+    }
+
+    .tooltip-exalt-stars {
+        color: var(--accent-gold, #c8a050);
+        margin-left: 4px;
     }
 
     .tooltip-guid {

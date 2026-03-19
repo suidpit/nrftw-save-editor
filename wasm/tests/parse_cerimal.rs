@@ -172,6 +172,29 @@ fn test_doc1_character_contents() {
     println!("✓ Doc 1 parsed with {} fields", fields.len());
 }
 
+#[test]
+fn test_exalt_stacks_in_snapshot() {
+    use nrftw_wasm::inventory_snapshot;
+
+    let dict = std::fs::read(DICT).expect("read dict");
+    let data = std::fs::read("../examples/char_exalted.cerimal").expect("read exalted save");
+    let docs = parse_all_docs(&data, &dict).expect("parse exalted save");
+    let snapshot = inventory_snapshot(&docs[1]).expect("snapshot");
+
+    let exalted_items: Vec<_> = snapshot.iter()
+        .filter(|i| i.enchantment_exalt_stacks.iter().any(|&s| s > 0))
+        .collect();
+    assert!(!exalted_items.is_empty(), "expected exalted items in test save");
+
+    for item in &exalted_items {
+        let total: i64 = item.enchantment_exalt_stacks.iter().sum();
+        assert!(total <= 4, "item {} has total exalt {} > 4", item.item_path, total);
+        println!("  exalted item {} — stacks: {:?}", item.item_path, item.enchantment_exalt_stacks);
+    }
+
+    println!("✓ {} exalted items found, all within cap", exalted_items.len());
+}
+
 const CATALOG_DB: &str = "../public/catalog.db";
 
 fn parse_doc0() -> ParsedDoc {
@@ -232,4 +255,70 @@ fn test_equipment_guids_in_catalog() {
     }
 
     println!("✓ All equipment GUIDs found in catalog with correct names");
+}
+
+#[test]
+fn test_snapshot_enchantment_qualities_and_exalt_stacks() {
+    use nrftw_wasm::inventory_snapshot;
+
+    let docs = load_docs();
+    let snapshot = inventory_snapshot(&docs[1]).expect("inventory_snapshot failed");
+
+    // All three parallel arrays must have identical lengths on every item
+    for item in &snapshot {
+        assert_eq!(
+            item.enchantment_guids.len(),
+            item.enchantment_qualities.len(),
+            "enchantment_qualities length mismatch at {}",
+            item.item_path
+        );
+        assert_eq!(
+            item.enchantment_guids.len(),
+            item.enchantment_exalt_stacks.len(),
+            "enchantment_exalt_stacks length mismatch at {}",
+            item.item_path
+        );
+        // Every quality string must parse as a valid u64
+        for q in &item.enchantment_qualities {
+            q.parse::<u64>().unwrap_or_else(|_| {
+                panic!("quality '{}' at {} is not a valid u64", q, item.item_path)
+            });
+        }
+    }
+
+    let enchanted: Vec<_> = snapshot
+        .iter()
+        .filter(|i| !i.enchantment_guids.is_empty())
+        .collect();
+    assert!(!enchanted.is_empty(), "expected at least one enchanted item in test save");
+
+    // Spot-check: find the item with the known enchantment "Movement Speed Increased After Kill"
+    // (guid 3202028461714202202, raw Quality 5534276545726513152 → q ≈ 0.30 → rolled = 9%)
+    let target_guid = "3202028461714202202";
+    let expected_quality = "5534276545726513152";
+
+    if let Some(item) = snapshot.iter().find(|i| i.enchantment_guids.iter().any(|g| g == target_guid)) {
+        let idx = item.enchantment_guids.iter().position(|g| g == target_guid).unwrap();
+        assert_eq!(
+            item.enchantment_qualities[idx], expected_quality,
+            "quality mismatch for {} at {}",
+            target_guid,
+            item.item_path
+        );
+        assert_eq!(
+            item.enchantment_exalt_stacks[idx], 0,
+            "expected ExaltStacks=0 for {} at {}",
+            target_guid,
+            item.item_path
+        );
+        println!("  ✓ {} quality={} at {}", target_guid, expected_quality, item.item_path);
+    } else {
+        println!("  Note: guid {} not in inventory (may be in equipped slot)", target_guid);
+    }
+
+    println!(
+        "✓ {} items, {} enchanted — all parallel arrays valid",
+        snapshot.len(),
+        enchanted.len()
+    );
 }

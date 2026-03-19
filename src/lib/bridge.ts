@@ -45,6 +45,8 @@ export interface InventorySnapshotItem {
     slotNum: number;
     runeGuids: string[];
     enchantmentGuids: string[];
+    enchantmentQualities: string[];
+    enchantmentExaltStacks: number[];
     traitGuid: string;
 }
 
@@ -285,7 +287,9 @@ export async function applyPendingChanges(): Promise<Uint8Array> {
                 durability: isEquipmentItem ? draft.durability : 0,
                 stack_count: draft.stackCount,
                 rune_guids: isEquipmentItem ? draft.runeGuids : [],
-                enchantment_guids: isEquipmentItem ? draft.enchantmentGuids : [],
+                enchantment_guids: isEquipmentItem ? draft.enchantments.map(e => e.guid) : [],
+                enchantment_qualities: isEquipmentItem ? draft.enchantments.map(e => e.quality) : [],
+                enchantment_exalt_stacks: isEquipmentItem ? draft.enchantments.map(e => e.exaltStacks) : [],
             };
         })(),
     });

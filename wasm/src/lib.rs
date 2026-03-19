@@ -156,6 +156,8 @@ pub struct InventorySnapshotItem {
     pub slot_num: i64,
     pub rune_guids: Vec<String>,
     pub enchantment_guids: Vec<String>,
+    pub enchantment_qualities: Vec<String>,
+    pub enchantment_exalt_stacks: Vec<i64>,
     pub trait_guid: String,
 }
 
@@ -290,7 +292,18 @@ pub fn inventory_snapshot(doc: &document::ParsedDoc) -> Result<Vec<InventorySnap
                 None => -1,
             },
             rune_guids: rune_guids(entry, &doc.schema),
-            enchantment_guids: enchantment_guids(entry, &doc.schema),
+            enchantment_guids: {
+                let entries = enchantment_entries(entry, &doc.schema);
+                entries.iter().map(|(guid, _, _)| guid.clone()).collect()
+            },
+            enchantment_qualities: {
+                let entries = enchantment_entries(entry, &doc.schema);
+                entries.iter().map(|(_, quality, _)| quality.clone()).collect()
+            },
+            enchantment_exalt_stacks: {
+                let entries = enchantment_entries(entry, &doc.schema);
+                entries.iter().map(|(_, _, exalt)| *exalt).collect()
+            },
             trait_guid: {
                 let guid = node_guid(entry, "Item.Enchantment.value.Trait.Asset.Id", &doc.schema)
                     .unwrap_or_default();
@@ -319,10 +332,19 @@ fn node_guid(
     parser::content::node_meta(value, schema).guid
 }
 
-fn enchantment_guids(
+fn node_u64_str(
+    node: &ContentNode,
+    path: &str,
+    schema: &crate::parser::schema::CerimalSchema,
+) -> Option<String> {
+    let value = find_node(node, path)?;
+    parser::content::node_meta(value, schema).value
+}
+
+fn enchantment_entries(
     entry: &ContentNode,
     schema: &crate::parser::schema::CerimalSchema,
-) -> Vec<String> {
+) -> Vec<(String, String, i64)> {
     let Some(list) = find_node(entry, "Item.Enchantment.value.Enchantment") else {
         return Vec::new();
     };
@@ -335,7 +357,13 @@ fn enchantment_guids(
 
     elements
         .iter()
-        .filter_map(|enchantment| node_guid(enchantment, "Asset.Id", schema))
+        .filter_map(|enchantment| {
+            let guid = node_guid(enchantment, "Asset.Id", schema)?;
+            let quality = node_u64_str(enchantment, "Quality", schema)
+                .unwrap_or_else(|| "0".to_string());
+            let exalt = node_i64(enchantment, "ExaltStacks", schema).unwrap_or(0);
+            Some((guid, quality, exalt))
+        })
         .collect()
 }
 

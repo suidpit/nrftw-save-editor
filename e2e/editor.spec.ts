@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SAVE_FILE = path.resolve(__dirname, "../examples/char_save_1.cerimal");
+const FILLED_SAVE_FILE = path.resolve(__dirname, "../examples/char_save_filled.cerimal");
+const EXALTED_SAVE_FILE = path.resolve(__dirname, "../examples/char_exalted.cerimal");
 const EDITABLE_EQUIPMENT_NAME = "Tattered Cerim Leggings";
 
 async function loadSave(page: import("@playwright/test").Page, filePath: string) {
@@ -113,6 +115,53 @@ async function createFetidClub(page: import("@playwright/test").Page) {
     await page.locator('input[placeholder*="Search"]').fill("Fetid Club");
     await page.locator('.picker-row:has-text("Fetid Club")').click();
 }
+
+test.describe("Enchantment rolls (filled save)", () => {
+    test.beforeEach(async ({ page }) => {
+        await loadSave(page, FILLED_SAVE_FILE);
+    });
+
+    test("tooltip shows exalt stars for exalted items", async ({ page }) => {
+        await loadSave(page, EXALTED_SAVE_FILE);
+        const items = page.locator(".inventory-item:not(.add-item)");
+        const count = await items.count();
+
+        let foundExalt = false;
+        for (let i = 0; i < count; i++) {
+            await items.nth(i).hover();
+            const stars = page.locator(".item-tooltip .tooltip-exalt-stars");
+            if (await stars.count() > 0) {
+                await expect(stars.first()).toContainText("★");
+                foundExalt = true;
+                break;
+            }
+        }
+        expect(foundExalt, "expected at least one item with tooltip exalt stars").toBe(true);
+    });
+
+    test("tooltip shows computed roll text for enchanted items (not raw ranges)", async ({ page }) => {
+        // char_save_filled.cerimal has enchanted items in inventory.
+        // Verify at least one tooltip shows a specific rolled value rather than a raw "(min% - max%)" range string.
+        const items = page.locator(".inventory-item:not(.add-item)");
+        const count = await items.count();
+
+        let foundEnchanted = false;
+        for (let i = 0; i < count; i++) {
+            await items.nth(i).hover();
+            const tooltip = page.locator(".item-tooltip");
+            const enchants = tooltip.locator(".tooltip-enchant");
+            const enchantCount = await enchants.count();
+            if (enchantCount === 0) continue;
+
+            const tooltipText = await tooltip.textContent();
+            // Raw range text like "(7% - 15%)" should never appear — always resolved to a single value
+            expect(tooltipText).not.toMatch(/\(\d+%\s*-\s*\d+%\)/);
+            foundEnchanted = true;
+            break;
+        }
+        expect(foundEnchanted).toBe(true);
+    });
+});
 
 test.describe("Editor Tab", () => {
     test.beforeEach(async ({ page }) => {
@@ -431,6 +480,96 @@ test.describe("Editor Tab", () => {
         await expect(page.locator(".inventory-item:not(.add-item)")).toHaveCount(beforeCount + 1);
     });
 
+    test("new range enchantment defaults to max roll", async ({ page }) => {
+        // "Equip Load Decreased": unique name, range 20..30, helm-compatible
+        // roll_text: "Equip Load reduced by {value}%"
+        // When added as new, quality should default to max → rolled = 30
+        await page.locator(".inventory-item.add-item").click();
+        await page.locator("#asset-type").selectOption("HelmDataAsset");
+        await page.locator('button:has-text("Pick Asset…")').click();
+        await page.locator('input[placeholder*="Search"]').fill("Wildling Helmet");
+        await page.locator('.picker-row:has-text("Wildling Helmet")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Equip Load Decreased");
+        await page.locator('.picker-row:has-text("Equip Load Decreased")').click();
+
+        // Slider and number input should appear for range enchantments
+        const slider = page.locator(".roll-slider");
+        const numberInput = page.locator(".roll-number");
+        await expect(slider).toBeVisible();
+        await expect(numberInput).toBeVisible();
+
+        // Default should be max (30)
+        await expect(numberInput).toHaveValue("30");
+        await expect(slider).toHaveValue("30");
+
+        // Effect text should show max roll value
+        await expect(page.locator(".modifier-effect")).toContainText("Equip Load reduced by 30%");
+    });
+
+    test("roll number input updates enchantment display text", async ({ page }) => {
+        // "Equip Load Decreased": range 20..30
+        await page.locator(".inventory-item.add-item").click();
+        await page.locator("#asset-type").selectOption("HelmDataAsset");
+        await page.locator('button:has-text("Pick Asset…")').click();
+        await page.locator('input[placeholder*="Search"]').fill("Wildling Helmet");
+        await page.locator('.picker-row:has-text("Wildling Helmet")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Equip Load Decreased");
+        await page.locator('.picker-row:has-text("Equip Load Decreased")').click();
+
+        // Change number input to min (20)
+        const numberInput = page.locator(".roll-number");
+        await numberInput.fill("20");
+        await numberInput.dispatchEvent("change");
+
+        await expect(numberInput).toHaveValue("20");
+        await expect(page.locator(".modifier-effect")).toContainText("Equip Load reduced by 20%");
+    });
+
+    test("enchantment roll quality survives download and reload", async ({ page }) => {
+        // "Equip Load Decreased": range 20..30, unique, helm-compatible
+        await page.locator(".inventory-item.add-item").click();
+        await page.locator("#asset-type").selectOption("HelmDataAsset");
+        await page.locator('button:has-text("Pick Asset…")').click();
+        await page.locator('input[placeholder*="Search"]').fill("Wildling Helmet");
+        await page.locator('.picker-row:has-text("Wildling Helmet")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Equip Load Decreased");
+        await page.locator('.picker-row:has-text("Equip Load Decreased")').click();
+
+        // Set roll to 25 (between min=20 and max=30)
+        const numberInput = page.locator(".roll-number");
+        await numberInput.fill("25");
+        await numberInput.dispatchEvent("change");
+        await expect(page.locator(".modifier-effect")).toContainText("Equip Load reduced by 25%");
+
+        await page.locator('.save-btn:has-text("Create")').click();
+
+        // Verify tooltip shows the resolved roll (not raw range)
+        const newItem = page.locator('.inventory-item:not(.add-item)[aria-label="Wildling Helmet"]').last();
+        await newItem.hover();
+        const tooltip = page.locator(".item-tooltip");
+        await expect(tooltip.locator(".tooltip-enchant")).toContainText("Equip Load reduced by 25%");
+        await expect(tooltip.locator(".tooltip-enchant")).not.toContainText("(20%");
+
+        // Download, reload, and verify the roll value was preserved
+        const downloadPromise = page.waitForEvent("download");
+        await page.locator(".download-btn").click();
+        const download = await downloadPromise;
+        const downloadedPath = await download.path();
+        expect(downloadedPath).not.toBeNull();
+
+        await loadSave(page, downloadedPath!);
+
+        const reloadedItem = page.locator('.inventory-item:not(.add-item)[aria-label="Wildling Helmet"]').last();
+        await reloadedItem.hover();
+        await expect(page.locator(".item-tooltip .tooltip-enchant")).toContainText("Equip Load reduced by 25%");
+    });
+
     test("mixed create edit and delete flow survives download and reload", async ({ page }) => {
         const items = page.locator(".inventory-item:not(.add-item)");
         const beforeCount = await items.count();
@@ -492,5 +631,85 @@ test.describe("Editor Tab", () => {
 
         await items.nth(beforeCount - 1).hover();
         await expect(page.locator(".item-tooltip .tooltip-guid")).toHaveText(battlecryGuid);
+    });
+
+    test("exalt stepper hidden when item is not fully slotted", async ({ page }) => {
+        await page.locator(".inventory-item.add-item").click();
+        await page.locator("#asset-type").selectOption("HelmDataAsset");
+        await page.locator('button:has-text("Pick Asset…")').click();
+        await page.locator('input[placeholder*="Search"]').fill("Wildling Helmet");
+        await page.locator('.picker-row:has-text("Wildling Helmet")').click();
+
+        // Add 1 enchantment (blue rarity cap = 3, so not fully slotted)
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Regen Focus In Combat");
+        await page.locator('.picker-row:has-text("Regen Focus In Combat")').click();
+
+        // 1/3 slots filled → no exalt stepper, hint visible
+        await expect(page.locator(".exalt-control")).toHaveCount(0);
+        await expect(page.getByText(/Fill all 3 enchantment slots/)).toBeVisible();
+    });
+
+    test("exalt stepper appears when all enchantment slots are filled", async ({ page }) => {
+        await page.locator(".inventory-item.add-item").click();
+        await page.locator("#asset-type").selectOption("HelmDataAsset");
+        await page.locator('button:has-text("Pick Asset…")').click();
+        await page.locator('input[placeholder*="Search"]').fill("Wildling Helmet");
+        await page.locator('.picker-row:has-text("Wildling Helmet")').click();
+
+        // Fill all 3 blue-rarity slots
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Regen Focus In Combat");
+        await page.locator('.picker-row:has-text("Regen Focus In Combat")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Equip Load Decreased");
+        await page.locator('.picker-row:has-text("Equip Load Decreased")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("");
+        await page.locator('.picker-row').first().click();
+
+        // 3/3 slots filled → exalt stepper visible per row + total counter
+        await expect(page.locator(".exalt-control")).toHaveCount(3);
+        await expect(page.locator(".exalt-total")).toBeVisible();
+        await expect(page.locator(".exalt-total")).toContainText("Exalt: 0/4");
+    });
+
+    test("exalt total caps at 4 across all enchantments", async ({ page }) => {
+        await page.locator(".inventory-item.add-item").click();
+        await page.locator("#asset-type").selectOption("HelmDataAsset");
+        await page.locator('button:has-text("Pick Asset…")').click();
+        await page.locator('input[placeholder*="Search"]').fill("Wildling Helmet");
+        await page.locator('.picker-row:has-text("Wildling Helmet")').click();
+
+        // Fill all 3 blue-rarity slots
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Regen Focus In Combat");
+        await page.locator('.picker-row:has-text("Regen Focus In Combat")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("Equip Load Decreased");
+        await page.locator('.picker-row:has-text("Equip Load Decreased")').click();
+
+        await page.locator('button:has-text("+ Add Enchantment")').click();
+        await page.locator('input[placeholder="Search enchantments…"]').fill("");
+        await page.locator('.picker-row').first().click();
+
+        // Click + 4 times on the first enchantment to reach the per-item cap
+        const firstIncreaseBtn = page.locator('.exalt-control button[aria-label="Increase exalt"]').first();
+        await firstIncreaseBtn.click();
+        await firstIncreaseBtn.click();
+        await firstIncreaseBtn.click();
+        await firstIncreaseBtn.click();
+
+        // Total = 4, EXALTED label visible, all + buttons disabled
+        await expect(page.locator(".exalt-total")).toContainText("Exalt: 4/4");
+        await expect(page.locator(".exalt-label")).toContainText("EXALTED");
+        const increaseButtons = page.locator('.exalt-control button[aria-label="Increase exalt"]');
+        const btnCount = await increaseButtons.count();
+        for (let i = 0; i < btnCount; i++) {
+            await expect(increaseButtons.nth(i)).toBeDisabled();
+        }
     });
 });

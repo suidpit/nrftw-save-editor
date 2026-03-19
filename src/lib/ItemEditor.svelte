@@ -14,6 +14,7 @@
         type CompatibleEnchantmentRow,
         type ModifierDetail,
     } from "./catalog";
+    import { computeRolledValue, formatRollText, qualityFromDesiredValue } from "./quality";
     import EnchantmentPicker from "./EnchantmentPicker.svelte";
     import {
         INVENTORY_ASSET_TYPES,
@@ -22,7 +23,7 @@
         isInventoryAssetType,
         isStackableAssetType,
     } from "./inventory-assets";
-    import type { ItemEditorDraft } from "./types";
+    import type { EnchantmentEntry, ItemEditorDraft } from "./types";
     import { isKnownUniqueItem } from "./unique-items";
 
     export let draft: ItemEditorDraft;
@@ -37,6 +38,9 @@
     const GOLD_RARITY = 3;
     const MAX_NON_UNIQUE_RARITY = 2;
     const CREATE_DURABILITY = 100;
+    const MAX_EXALT_TOTAL = 4;
+    const ENCHANT_CAP_BLUE = 3;   // rarity 1
+    const ENCHANT_CAP_PURPLE = 5; // rarity 2
 
     let assetType = draft.assetType || "";
     let assetGuid = draft.assetGuid;
@@ -48,8 +52,7 @@
     let stackCount = draft.stackCount;
     let runeGuids = [...draft.runeGuids];
     let runeNames = [...draft.runeNames];
-    let enchantmentGuids = [...draft.enchantmentGuids];
-    let enchantmentNames = [...draft.enchantmentNames];
+    let enchantments: EnchantmentEntry[] = draft.enchantments.map(e => ({ ...e }));
     let traitGuid = draft.traitGuid;
     let traitName = draft.traitName;
 
@@ -70,6 +73,12 @@
     $: siteUrl = getSiteUrl(catalogEntryMeta?.sitePath);
     $: hasCatalogDefaults = assetGuid ? hasCatalogPreexistingModifiers(assetGuid) : false;
     $: isKnownUnique = assetGuid ? isKnownUniqueItem(assetGuid) : false;
+    $: totalExaltStacks = enchantments.reduce((sum, e) => sum + e.exaltStacks, 0);
+    $: enchantmentCap = isKnownUnique ? enchantments.length
+        : rarity >= 2 ? ENCHANT_CAP_PURPLE
+        : rarity >= 1 ? ENCHANT_CAP_BLUE
+        : 0;
+    $: isFullySlotted = isKnownUnique || enchantments.length >= enchantmentCap;
     $: modifiersLocked = isRingItem || isKnownUnique;
     $: goldAllowed = isKnownUnique;
     $: availableRarityIndexes = goldAllowed ? [0, 1, 2, 3] : [0, 1, 2];
@@ -82,10 +91,10 @@
         .map((guid) => getAssetByGuid(guid))
         .filter((detail): detail is NonNullable<typeof detail> => detail !== null);
     $: minimumRarityForEnchantments = getMinimumRarityForEnchantments(
-        enchantmentGuids.length,
+        enchantments.length,
     );
     $: rarityWasAdjustedForEnchantments =
-        enchantmentGuids.length > 0 && rarity === minimumRarityForEnchantments;
+        enchantments.length > 0 && rarity === minimumRarityForEnchantments;
     $: if (isCreateMode && durability !== CREATE_DURABILITY) {
         durability = CREATE_DURABILITY;
     }
@@ -95,12 +104,11 @@
     $: if (!goldAllowed && rarity === GOLD_RARITY) {
         rarity = normalizeRarityForEnchantments(
             MAX_NON_UNIQUE_RARITY,
-            enchantmentGuids.length,
+            enchantments.length,
         );
     }
-    $: if (!isEquipmentItem && enchantmentGuids.length > 0) {
-        enchantmentGuids = [];
-        enchantmentNames = [];
+    $: if (!isEquipmentItem && enchantments.length > 0) {
+        enchantments = [];
     }
     $: if (!isWeaponItem && runeGuids.length > 0) {
         runeGuids = [];
@@ -143,8 +151,12 @@
         const defaultEnchants = getPreexistingModifiersForAsset(nextAssetGuid, "enchantment");
         runeGuids = defaultRunes.map((modifier) => modifier.guid);
         runeNames = defaultRunes.map((modifier) => modifier.displayName || modifier.name);
-        enchantmentGuids = defaultEnchants.map((modifier) => modifier.guid);
-        enchantmentNames = defaultEnchants.map((modifier) => modifier.displayName || modifier.name);
+        enchantments = defaultEnchants.map((modifier) => ({
+            guid: modifier.guid,
+            name: modifier.displayName || modifier.name,
+            quality: defaultQualityFor(modifier.guid),
+            exaltStacks: 0,
+        }));
         if (isKnownUniqueItem(nextAssetGuid)) {
             rarity = GOLD_RARITY;
             return;
@@ -153,13 +165,25 @@
         rarity = normalizeRarityForEnchantments(0, defaultEnchants.length);
     }
 
+    function defaultQualityFor(guid: string): string {
+        const detail = getModifierDetailByGuid(guid);
+        if (detail?.rollKind === "range" && detail.rollMin != null && detail.rollMax != null) {
+            return qualityFromDesiredValue(detail.rollMax, detail.rollMin, detail.rollMax, detail.rollIsNegative);
+        }
+        return "0";
+    }
+
     function addEnchantment(row: CompatibleEnchantmentRow) {
         if (modifiersLocked) return;
-        if (enchantmentGuids.includes(row.guid)) return;
+        if (enchantments.some(e => e.guid === row.guid)) return;
         const name = row.displayName || row.title || row.name;
-        enchantmentGuids = [...enchantmentGuids, row.guid];
-        enchantmentNames = [...enchantmentNames, name];
-        rarity = normalizeRarityForEnchantments(rarity, enchantmentGuids.length);
+        enchantments = [...enchantments, {
+            guid: row.guid,
+            name,
+            quality: defaultQualityFor(row.guid),
+            exaltStacks: 0,
+        }];
+        rarity = normalizeRarityForEnchantments(rarity, enchantments.length);
         showEnchantSearch = false;
     }
 
@@ -169,29 +193,51 @@
 
     function removeEnchantment(index: number) {
         if (modifiersLocked) return;
-        enchantmentGuids = enchantmentGuids.filter((_, i) => i !== index);
-        enchantmentNames = enchantmentNames.filter((_, i) => i !== index);
-        rarity = normalizeRarityForEnchantments(rarity, enchantmentGuids.length);
+        enchantments = enchantments.filter((_, i) => i !== index);
+        rarity = normalizeRarityForEnchantments(rarity, enchantments.length);
     }
 
     function moveEnchantment(index: number, direction: -1 | 1) {
         if (modifiersLocked) return;
         const nextIndex = index + direction;
-        if (nextIndex < 0 || nextIndex >= enchantmentGuids.length) return;
+        if (nextIndex < 0 || nextIndex >= enchantments.length) return;
+        const next = [...enchantments];
+        [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+        enchantments = next;
+    }
 
-        const nextGuids = [...enchantmentGuids];
-        [nextGuids[index], nextGuids[nextIndex]] = [
-            nextGuids[nextIndex],
-            nextGuids[index],
-        ];
-        enchantmentGuids = nextGuids;
+    function enchantmentRolledText(entry: EnchantmentEntry): string | null {
+        const detail = getModifierDetailByGuid(entry.guid);
+        if (!detail) return null;
+        const result = computeRolledValue(
+            entry.quality,
+            detail.rollKind,
+            detail.rollMin,
+            detail.rollMax,
+            detail.rollValue,
+            detail.rollUnit,
+            detail.rollIsNegative,
+        );
+        return formatRollText(detail.rollText, result);
+    }
 
-        const nextNames = [...enchantmentNames];
-        [nextNames[index], nextNames[nextIndex]] = [
-            nextNames[nextIndex],
-            nextNames[index],
-        ];
-        enchantmentNames = nextNames;
+    function setExaltStacks(index: number, value: number) {
+        const clamped = Math.max(0, Math.min(4, value));
+        const otherTotal = enchantments.reduce((sum, e, i) => i === index ? sum : sum + e.exaltStacks, 0);
+        const maxForThis = MAX_EXALT_TOTAL - otherTotal;
+        const next = [...enchantments];
+        next[index] = { ...next[index], exaltStacks: Math.min(clamped, maxForThis) };
+        enchantments = next;
+    }
+
+    function setEnchantmentRoll(index: number, desiredInt: number) {
+        const entry = enchantments[index];
+        const detail = getModifierDetailByGuid(entry.guid);
+        if (!detail || detail.rollKind !== "range" || detail.rollMin == null || detail.rollMax == null) return;
+        const newQuality = qualityFromDesiredValue(desiredInt, detail.rollMin, detail.rollMax, detail.rollIsNegative);
+        const next = [...enchantments];
+        next[index] = { ...entry, quality: newQuality };
+        enchantments = next;
     }
 
     function save() {
@@ -213,8 +259,7 @@
             stackCount: isStackableItem ? Math.max(1, Math.floor(stackCount || 1)) : 1,
             runeGuids: isWeaponItem ? runeGuids : [],
             runeNames: isWeaponItem ? runeNames : [],
-            enchantmentGuids: isEquipmentItem ? enchantmentGuids : [],
-            enchantmentNames: isEquipmentItem ? enchantmentNames : [],
+            enchantments: isEquipmentItem ? enchantments : [],
             traitGuid,
             traitName,
         });
@@ -269,8 +314,7 @@
                             assetIcon = null;
                             runeGuids = [];
                             runeNames = [];
-                            enchantmentGuids = [];
-                            enchantmentNames = [];
+                            enchantments = [];
                             traitGuid = "";
                             traitName = "";
                             assetPickerResults = [];
@@ -427,21 +471,66 @@
                 <section class="field-section">
                     <span class="field-label">Enchantments</span>
                     <div class="enchant-list">
-                        {#each enchantmentGuids as guid, index}
-                            {@const detail = enchantmentDetail(guid)}
+                        {#each enchantments as entry, index}
+                            {@const detail = enchantmentDetail(entry.guid)}
+                            {@const rolledText = enchantmentRolledText(entry)}
+                            {@const isRange = detail?.rollKind === "range" && detail.rollMin != null && detail.rollMax != null}
+                            {@const rolledInt = isRange ? (computeRolledValue(entry.quality, detail!.rollKind, detail!.rollMin, detail!.rollMax, detail!.rollValue, detail!.rollUnit, detail!.rollIsNegative)?.rolledInt ?? detail!.rollMin!) : null}
                             <div class="enchant-row">
                                 <div class="modifier-copy">
                                     <div class="modifier-header-line">
-                                        <span class="enchant-name">{detail?.title || enchantmentNames[index]}</span>
+                                        <span class="enchant-name">{detail?.title || entry.name}</span>
                                         {#if detail?.isFacet}
                                             <span class="picker-tag facet-tag">Facet</span>
                                         {/if}
                                     </div>
-                                    {#if detail?.effectText}
+                                    {#if rolledText}
+                                        <div class="modifier-effect">{rolledText}</div>
+                                    {:else if detail?.effectText}
                                         <div class="modifier-effect">{detail.effectText}</div>
+                                    {/if}
+                                    {#if isRange && !modifiersLocked}
+                                        <div class="roll-control">
+                                            <input
+                                                type="range"
+                                                class="roll-slider"
+                                                min={detail!.rollMin!}
+                                                max={detail!.rollMax!}
+                                                step={1}
+                                                value={rolledInt}
+                                                on:input={(e) => setEnchantmentRoll(index, Number(e.currentTarget.value))}
+                                            />
+                                            <input
+                                                type="number"
+                                                class="roll-number"
+                                                min={detail!.rollMin!}
+                                                max={detail!.rollMax!}
+                                                value={rolledInt}
+                                                on:change={(e) => setEnchantmentRoll(index, Number(e.currentTarget.value))}
+                                            />
+                                        </div>
                                     {/if}
                                     {#if detail?.onlyOnItems && detail.onlyOnItems !== "Regular Item"}
                                         <div class="modifier-restriction">Only on: {detail.onlyOnItems}</div>
+                                    {/if}
+                                    {#if isFullySlotted && !modifiersLocked}
+                                        <div class="exalt-control">
+                                            <button
+                                                class="exalt-btn"
+                                                disabled={entry.exaltStacks <= 0}
+                                                on:click={() => setExaltStacks(index, entry.exaltStacks - 1)}
+                                                aria-label="Decrease exalt"
+                                            >−</button>
+                                            <span class="exalt-stars" aria-label="{entry.exaltStacks} exalt stacks">
+                                                {#each Array(entry.exaltStacks) as _}★{/each}{#each Array(totalExaltStacks < MAX_EXALT_TOTAL && entry.exaltStacks < MAX_EXALT_TOTAL ? 1 : 0) as _}☆{/each}
+                                            </span>
+                                            <button
+                                                class="exalt-btn"
+                                                disabled={totalExaltStacks >= MAX_EXALT_TOTAL || entry.exaltStacks >= MAX_EXALT_TOTAL}
+                                                on:click={() => setExaltStacks(index, entry.exaltStacks + 1)}
+                                                aria-label="Increase exalt"
+                                            >+</button>
+                                        </div>
                                     {/if}
                                 </div>
                                 {#if !modifiersLocked}
@@ -459,6 +548,18 @@
                             + Add Enchantment
                         </button>
                     </div>
+                    {#if isFullySlotted && enchantments.length > 0 && !modifiersLocked}
+                        <div class="exalt-total">
+                            Exalt: {totalExaltStacks}/{MAX_EXALT_TOTAL}
+                            {#if totalExaltStacks >= MAX_EXALT_TOTAL}
+                                — <span class="exalt-label">EXALTED</span>
+                            {/if}
+                        </div>
+                    {:else if enchantments.length > 0 && enchantments.length < enchantmentCap && !modifiersLocked}
+                        <div class="field-hint">
+                            Fill all {enchantmentCap} enchantment slots to enable exalting.
+                        </div>
+                    {/if}
                     {#if rarityWasAdjustedForEnchantments}
                         <div class="field-hint">
                             Rarity was adjusted to match the current enchantment count.
@@ -507,7 +608,7 @@
 {#if showEnchantSearch && isEquipmentItem}
     <EnchantmentPicker
         {assetGuid}
-        excludeGuids={enchantmentGuids}
+        excludeGuids={enchantments.map(e => e.guid)}
         on:select={(e) => addEnchantment(e.detail)}
         on:close={() => showEnchantSearch = false}
     />
@@ -788,10 +889,84 @@
         padding: 6px 2px;
     }
 
+    .roll-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .roll-slider {
+        flex: 1;
+        accent-color: var(--accent-gold, #c8a050);
+        cursor: pointer;
+    }
+
+    .roll-number {
+        width: 54px;
+        padding: 3px 6px;
+        font-size: 0.82em;
+        background: var(--bg-card, #2d2010);
+        border: 1px solid var(--border-color, #4a3520);
+        border-radius: 4px;
+        color: var(--text-primary, #e8d5a3);
+        font-family: var(--font-mono);
+        text-align: right;
+    }
+
+    .roll-number:focus {
+        border-color: var(--accent-gold, #c8a050);
+        outline: none;
+    }
+
     .field-hint {
         font-size: 0.78em;
         color: var(--text-secondary, #a89070);
         line-height: 1.35;
+    }
+
+    .exalt-control {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    .exalt-btn {
+        background: var(--bg-card, #2d2010);
+        border: 1px solid var(--border-color, #4a3520);
+        color: var(--accent-gold, #c8a050);
+        border-radius: 4px;
+        width: 22px;
+        height: 22px;
+        font-size: 0.8em;
+        padding: 0;
+        line-height: 1;
+        font-family: inherit;
+    }
+
+    .exalt-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    .exalt-stars {
+        font-size: 0.82em;
+        color: var(--accent-gold, #c8a050);
+        min-width: 20px;
+    }
+
+    .exalt-total {
+        font-size: 0.78em;
+        color: var(--text-secondary, #a89070);
+        margin-top: 4px;
+    }
+
+    .exalt-label {
+        color: var(--accent-gold, #c8a050);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
     }
 
     .save-error {

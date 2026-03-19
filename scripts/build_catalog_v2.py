@@ -1469,7 +1469,14 @@ def init_output_db(db_path: Path) -> sqlite3.Connection:
             description_text   TEXT,
             source_text        TEXT,
             sell_value         TEXT,
-            raw_site_json      TEXT NOT NULL
+            raw_site_json      TEXT NOT NULL,
+            roll_kind          TEXT,
+            roll_min           REAL,
+            roll_max           REAL,
+            roll_value         REAL,
+            roll_unit          TEXT,
+            roll_is_negative   INTEGER,
+            roll_text          TEXT
         );
         CREATE INDEX idx_modifier_kind ON modifier_details(modifier_kind);
 

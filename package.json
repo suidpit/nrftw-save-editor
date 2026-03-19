@@ -10,6 +10,7 @@
     "build:pages": "vite build && node scripts/prepare-pages-catalog.mjs",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
@@ -22,7 +23,8 @@
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-top-level-await": "^1.4.4",
-    "vite-plugin-wasm": "^3.4.1"
+    "vite-plugin-wasm": "^3.4.1",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@bokuweb/zstd-wasm": "^0.0.27",

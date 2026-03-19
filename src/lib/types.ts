@@ -1,3 +1,10 @@
+export interface EnchantmentEntry {
+    guid: string;
+    name: string;
+    quality: string;      // u64 decimal string, "0" = worst roll
+    exaltStacks: number;  // 0 for new
+}
+
 export interface ItemEditorDraft {
     docIdx: number;
     itemPath: string | null;
@@ -11,8 +18,7 @@ export interface ItemEditorDraft {
     stackCount: number;
     runeGuids: string[];
     runeNames: string[];
-    enchantmentGuids: string[];
-    enchantmentNames: string[];
+    enchantments: EnchantmentEntry[];
     traitGuid: string;
     traitName: string;
     isNew: boolean;

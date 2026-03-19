@@ -80,6 +80,13 @@ export interface ModifierDetail extends CatalogRow {
   descriptionText: string | null;
   sourceText: string | null;
   isFacet: boolean;
+  rollKind: "range" | "fixed" | "special" | null;
+  rollMin: number | null;
+  rollMax: number | null;
+  rollValue: number | null;
+  rollUnit: string | null;
+  rollIsNegative: boolean;
+  rollText: string | null;
 }
 
 export interface CompatibleEnchantmentRow extends ModifierDetail {
@@ -598,7 +605,14 @@ export function getModifierDetailByGuid(guid: string): ModifierDetail | null {
       md.only_on_items,
       md.effect_text,
       md.description_text,
-      md.source_text
+      md.source_text,
+      md.roll_kind,
+      md.roll_min,
+      md.roll_max,
+      md.roll_value,
+      md.roll_unit,
+      md.roll_is_negative,
+      md.roll_text
     FROM modifier_details md
     JOIN assets a
       ON a.asset_guid = md.asset_guid
@@ -626,6 +640,13 @@ export function getModifierDetailByGuid(guid: string): ModifierDetail | null {
     descriptionText: strOrNull(row.description_text),
     sourceText: strOrNull(row.source_text),
     isFacet: onlyOnItems !== null && onlyOnItems !== "Regular Item",
+    rollKind: strOrNull(row.roll_kind) as ModifierDetail["rollKind"],
+    rollMin: numOrNull(row.roll_min),
+    rollMax: numOrNull(row.roll_max),
+    rollValue: numOrNull(row.roll_value),
+    rollUnit: strOrNull(row.roll_unit),
+    rollIsNegative: row.roll_is_negative === 1,
+    rollText: strOrNull(row.roll_text),
   };
 }
 
@@ -712,6 +733,13 @@ export function searchCompatibleEnchantmentsForAsset(
       md.effect_text,
       md.description_text,
       md.source_text,
+      md.roll_kind,
+      md.roll_min,
+      md.roll_max,
+      md.roll_value,
+      md.roll_unit,
+      md.roll_is_negative,
+      md.roll_text,
       mc.source_label,
       mc.target_kind,
       mc.target_subkind,
@@ -741,6 +769,13 @@ export function searchCompatibleEnchantmentsForAsset(
       md.effect_text,
       md.description_text,
       md.source_text,
+      md.roll_kind,
+      md.roll_min,
+      md.roll_max,
+      md.roll_value,
+      md.roll_unit,
+      md.roll_is_negative,
+      md.roll_text,
       mc.source_label,
       mc.target_kind,
       mc.target_subkind,
@@ -777,6 +812,13 @@ export function searchCompatibleEnchantmentsForAsset(
       requiredHandling: strOrNull(row.required_handling),
       restrictedToItemNames,
       isFacet: onlyOnItems !== null && onlyOnItems !== "Regular Item",
+      rollKind: strOrNull(row.roll_kind) as ModifierDetail["rollKind"],
+      rollMin: numOrNull(row.roll_min),
+      rollMax: numOrNull(row.roll_max),
+      rollValue: numOrNull(row.roll_value),
+      rollUnit: strOrNull(row.roll_unit),
+      rollIsNegative: row.roll_is_negative === 1,
+      rollText: strOrNull(row.roll_text),
     };
   });
 }
